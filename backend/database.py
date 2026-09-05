@@ -102,6 +102,7 @@ class TestResult(Base):
     grounding_type = Column(
         String, default="independent_ocr_line_match"
     )  # "independent_ocr_line_match" | "model_self_consistency"
+    category = Column(String, default="General Laboratory Panel")
     # Provenance tag: "Patient-reported" | "Extracted from report" | "AI-generated"
     source = Column(String, default="Extracted from report")
     created_at = Column(DateTime, default=get_utc_now)
@@ -207,6 +208,15 @@ def init_db():
             conn.execute(
                 db_text(
                     "ALTER TABLE test_results ADD COLUMN grounding_type VARCHAR DEFAULT 'independent_ocr_line_match'"
+                )
+            )
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(
+                db_text(
+                    "ALTER TABLE test_results ADD COLUMN category VARCHAR DEFAULT 'General Laboratory Panel'"
                 )
             )
             conn.commit()

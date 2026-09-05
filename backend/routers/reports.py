@@ -253,11 +253,32 @@ def get_report_details(
         .first()
     )
 
+    # Historical timeline aggregation for temporal engine & history graph
+    all_reports = (
+        db.query(Report).filter(Report.patient_id == report.patient_id).order_by(Report.report_date.asc()).all()
+    )
+
     results_list = []
     for tr in report.test_results:
+        # Collect chronological history for this analyte
+        history_points = []
+        for r in all_reports:
+            for other_tr in r.test_results:
+                if other_tr.canonical_name == tr.canonical_name or other_tr.test_name == tr.test_name:
+                    history_points.append(
+                        {
+                            "date": r.report_date,
+                            "value": other_tr.value,
+                            "ref_raw": other_tr.ref_raw,
+                            "is_abnormal": other_tr.is_abnormal,
+                            "is_borderline": getattr(other_tr, "is_borderline", False),
+                        }
+                    )
+
         results_list.append(
             {
                 "id": tr.id,
+                "category": getattr(tr, "category", "General Laboratory Panel") or "General Laboratory Panel",
                 "test_name": tr.test_name,
                 "loinc_code": tr.loinc_code,
                 "canonical_name": tr.canonical_name,
@@ -267,6 +288,7 @@ def get_report_details(
                 "ref_high": tr.ref_high,
                 "ref_raw": tr.ref_raw,
                 "is_abnormal": tr.is_abnormal,
+                "is_borderline": getattr(tr, "is_borderline", False),
                 "confidence_tier": tr.confidence_tier,
                 "legibility_flag": tr.legibility_flag,
                 "bbox": {
@@ -278,13 +300,9 @@ def get_report_details(
                 "is_grounded": tr.is_grounded,
                 "grounding_type": getattr(tr, "grounding_type", "independent_ocr_line_match"),
                 "source": tr.source,
+                "history": history_points,
             }
         )
-
-    # Historical timeline aggregation for temporal engine
-    all_reports = (
-        db.query(Report).filter(Report.patient_id == report.patient_id).order_by(Report.report_date.asc()).all()
-    )
 
     historical_payload = []
     for r in all_reports:

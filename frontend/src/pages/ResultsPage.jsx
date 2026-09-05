@@ -1,14 +1,22 @@
 /**
  * @file ResultsPage.jsx
  * @description Comprehensive Clinical Laboratory Results & Intelligence Dashboard.
- * Includes interactive ReportViewer with SVG bounding box grounding, LOINC mappings,
- * biological sanity checking, human-in-the-loop (HITL) correction workflow,
- * adversarial non-diagnostic AI summaries, and multilingual voice narration.
+ * Supports Smart Report view (with 3-zone visual range gauges, historical progression graphs,
+ * categorized panel accordions), Health Summary view (adversarial intelligence & clinical insights),
+ * and Document OCR Grounding view (SVG bounding box overlays).
  */
 
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { FileText, CheckCircle2 } from 'lucide-react';
+import {
+  FileText,
+  CheckCircle2,
+  Sparkles,
+  Activity,
+  FileCheck,
+  Download,
+  Share2
+} from 'lucide-react';
 import ReportViewer from '../components/ReportViewer';
 import WhatsAppModal from '../components/WhatsAppModal';
 import FhirModal from '../components/FhirModal';
@@ -17,6 +25,7 @@ import InconsistencyAlert from '../components/results/InconsistencyAlert';
 import BiomarkerTable from '../components/results/BiomarkerTable';
 import AiIntelligencePanel from '../components/results/AiIntelligencePanel';
 import HitlCorrectionModal from '../components/results/HitlCorrectionModal';
+import SmartReportView from '../components/results/SmartReportView';
 import { correctTestResult } from '../api/client';
 
 export default function ResultsPage({
@@ -26,6 +35,9 @@ export default function ResultsPage({
   onExportPdf,
   onViewTimeline
 }) {
+  // Main view switcher: 'smart' (default) | 'summary' | 'ocr'
+  const [activeSubView, setActiveSubView] = useState('smart');
+
   const [selectedResultId, setSelectedResultId] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
@@ -132,67 +144,169 @@ export default function ResultsPage({
     }
   };
 
+  const currentReport = {
+    ...reportData,
+    results: localResults
+  };
+
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-16">
+    <div className="max-w-5xl mx-auto space-y-6 pb-20 px-3 sm:px-6">
       {/* Toast Notification */}
       {notification && (
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-xl border flex items-center justify-between text-xs font-semibold animate-in fade-in ${
+          className={`p-4 rounded-2xl border flex items-center justify-between text-xs font-semibold animate-in fade-in ${
             notification.type === 'success'
-              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 shadow-lg shadow-emerald-950'
-              : 'bg-rose-950/80 border-rose-500 text-rose-200'
+              ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200 shadow-xl shadow-emerald-950'
+              : 'bg-rose-950/90 border-rose-500 text-rose-200 shadow-xl shadow-rose-950'
           }`}
         >
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-hidden="true" />
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" aria-hidden="true" />
             <span>{notification.message}</span>
           </div>
         </div>
       )}
 
-      {/* Top Clinical Summary Banner */}
-      <ClinicalSummaryBanner
-        reportData={{ ...reportData, results: localResults }}
-        isSpeaking={isSpeaking}
-        onToggleSpeech={handleToggleSpeech}
-        onOpenFhir={() => setIsFhirOpen(true)}
-        onOpenWhatsApp={() => setIsWhatsAppOpen(true)}
-        onExportPdf={onExportPdf}
-      />
+      {/* Top Patient Title Bar Matching Screenshot #1 */}
+      <div className="flex items-center justify-between gap-4 pt-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-100 font-display flex items-center gap-2">
+            <span className="text-emerald-400 font-mono text-lg">‹</span>
+            <span>{reportData.patient?.name || 'Patient'}&apos;s Report</span>
+          </h1>
+        </div>
 
-      {/* Inconsistency Conflict Alert */}
-      <InconsistencyAlert inconsistencies={reportData.inconsistencies} />
+        {/* Action icons */}
+        <div className="flex items-center gap-2">
+          {onExportPdf && (
+            <button
+              type="button"
+              onClick={onExportPdf}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors shadow-sm"
+              title="Download Clinical Summary PDF"
+              aria-label="Download Clinical Summary PDF"
+            >
+              <Download className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
 
-      {/* Document OCR Visual Grounding Viewer */}
-      <ReportViewer
-        fileUrl={reportData.report_metadata?.file_url}
-        results={localResults}
-        selectedResultId={selectedResultId}
-        onSelectResult={setSelectedResultId}
-        reportDate={reportData.report_metadata?.report_date}
-        patientName={reportData.patient?.name}
-      />
+          <button
+            type="button"
+            onClick={() => setIsWhatsAppOpen(true)}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors shadow-sm"
+            title="Share via WhatsApp"
+            aria-label="Share via WhatsApp"
+          >
+            <Share2 className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
 
-      {/* Normalized Biomarkers Table */}
-      <BiomarkerTable
-        results={localResults}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onlyAbnormalFilter={onlyAbnormalFilter}
-        setOnlyAbnormalFilter={setOnlyAbnormalFilter}
-        selectedResultId={selectedResultId}
-        onSelectResult={setSelectedResultId}
-        onStartCorrection={handleStartCorrection}
-        glossary={glossary}
-      />
+      {/* Segmented View Switcher Tabs Matching User Photos */}
+      <div className="bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 flex items-center justify-center gap-1.5 shadow-md">
+        <button
+          type="button"
+          onClick={() => setActiveSubView('smart')}
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+            activeSubView === 'smart'
+              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span>Smart Report</span>
+        </button>
 
-      {/* Adversarial AI Intelligence Panel */}
-      <AiIntelligencePanel
-        clinicalIntelligence={reportData.clinical_intelligence}
-        onViewTimeline={onViewTimeline}
-      />
+        <button
+          type="button"
+          onClick={() => setActiveSubView('summary')}
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+            activeSubView === 'summary'
+              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
+        >
+          <Activity className="w-4 h-4" aria-hidden="true" />
+          <span>Health Summary</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubView('ocr')}
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+            activeSubView === 'ocr'
+              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+          }`}
+        >
+          <FileCheck className="w-4 h-4" aria-hidden="true" />
+          <span>Document OCR View</span>
+        </button>
+      </div>
+
+      {/* View 1: Smart Report (Default, matching screenshots #1, #2, #3, #4) */}
+      {activeSubView === 'smart' && (
+        <div className="space-y-6">
+          <SmartReportView
+            reportData={currentReport}
+            selectedResultId={selectedResultId}
+            onSelectResult={setSelectedResultId}
+            onStartCorrection={handleStartCorrection}
+            glossary={glossary}
+          />
+        </div>
+      )}
+
+      {/* View 2: Health Summary & Clinical Insights */}
+      {activeSubView === 'summary' && (
+        <div className="space-y-6 animate-in fade-in">
+          <ClinicalSummaryBanner
+            reportData={currentReport}
+            isSpeaking={isSpeaking}
+            onToggleSpeech={handleToggleSpeech}
+            onOpenFhir={() => setIsFhirOpen(true)}
+            onOpenWhatsApp={() => setIsWhatsAppOpen(true)}
+            onExportPdf={onExportPdf}
+          />
+
+          <InconsistencyAlert inconsistencies={reportData.inconsistencies} />
+
+          <AiIntelligencePanel
+            clinicalIntelligence={reportData.clinical_intelligence}
+            onViewTimeline={onViewTimeline}
+          />
+
+          <BiomarkerTable
+            results={localResults}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onlyAbnormalFilter={onlyAbnormalFilter}
+            setOnlyAbnormalFilter={setOnlyAbnormalFilter}
+            selectedResultId={selectedResultId}
+            onSelectResult={setSelectedResultId}
+            onStartCorrection={handleStartCorrection}
+            glossary={glossary}
+          />
+        </div>
+      )}
+
+      {/* View 3: Document OCR Visual Grounding View */}
+      {activeSubView === 'ocr' && (
+        <div className="space-y-6 animate-in fade-in">
+          <InconsistencyAlert inconsistencies={reportData.inconsistencies} />
+
+          <ReportViewer
+            fileUrl={reportData.report_metadata?.file_url}
+            results={localResults}
+            selectedResultId={selectedResultId}
+            onSelectResult={setSelectedResultId}
+            reportDate={reportData.report_metadata?.report_date}
+            patientName={reportData.patient?.name}
+          />
+        </div>
+      )}
 
       {/* HITL Correction Modal */}
       <HitlCorrectionModal
@@ -206,7 +320,7 @@ export default function ResultsPage({
         onCancel={() => setEditingResult(null)}
       />
 
-      {/* Modals */}
+      {/* Export Modals */}
       <FhirModal
         isOpen={isFhirOpen}
         onClose={() => setIsFhirOpen(false)}
@@ -216,7 +330,7 @@ export default function ResultsPage({
       <WhatsAppModal
         isOpen={isWhatsAppOpen}
         onClose={() => setIsWhatsAppOpen(false)}
-        reportData={{ ...reportData, results: localResults }}
+        reportData={currentReport}
         language={language}
       />
     </div>

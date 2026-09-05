@@ -25,7 +25,7 @@ export default function App() {
         setPatients(patientsData || []);
         setGlossary(glossaryData || {});
         if (patientsData && patientsData.length > 0) {
-          const defaultPat = patientsData.find(p => p.id === 'pat-arjun-sharma') || patientsData[0];
+          const defaultPat = patientsData.find(p => p.id === 'pat-p-vijay-kumar') || patientsData[0];
           setSelectedPatientId(defaultPat.id);
         }
       })
@@ -53,11 +53,11 @@ export default function App() {
   // When report or language changes, fetch full report details
   useEffect(() => {
     if (selectedReportId) {
-      fetchReportDetails(selectedReportId, language)
+      fetchReportDetails(selectedReportId, language, selectedPatientId)
         .then((data) => setCurrentReportData(data))
         .catch((err) => console.error('Error fetching report details:', err));
     }
-  }, [selectedReportId, language]);
+  }, [selectedReportId, language, selectedPatientId]);
 
   const handlePatientSelect = (patId) => {
     setSelectedPatientId(patId);
@@ -71,7 +71,18 @@ export default function App() {
   };
 
   const handleSelectQuickDemo = (demoType) => {
-    if (demoType === 'arjun') {
+    if (demoType === 'vijay') {
+      const vijay = patients.find(p => p.id === 'pat-p-vijay-kumar' || p.name.includes('Vijay'));
+      if (vijay) {
+        setSelectedPatientId(vijay.id);
+        fetchPatientReports(vijay.id).then((reps) => {
+          if (reps && reps.length > 0) {
+            setSelectedReportId(reps[reps.length - 1].id);
+          }
+          setActiveTab('results');
+        });
+      }
+    } else if (demoType === 'arjun') {
       const arjun = patients.find(p => p.id === 'pat-arjun-sharma' || p.name.includes('Arjun'));
       if (arjun) {
         setSelectedPatientId(arjun.id);

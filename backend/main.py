@@ -45,6 +45,7 @@ from routers import patients as patients_router
 from routers import reports as reports_router
 from routers import whatsapp as whatsapp_router
 from samples.sample_data import seed_sample_database
+from security import check_rate_limit, generate_session_token, validate_magic_bytes, verify_session_token
 from sqlalchemy.orm import Session
 
 # Configure Root Logger

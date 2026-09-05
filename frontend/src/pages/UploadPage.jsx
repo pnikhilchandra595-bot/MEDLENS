@@ -134,13 +134,25 @@ export default function UploadPage({
         <span className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
           ⚡ Quick Demo Scenarios (One-Click Testing)
         </span>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            onClick={() => onSelectQuickDemo('vijay')}
+            className="p-3 bg-slate-800/80 hover:bg-emerald-950/40 hover:border-emerald-500/40 border border-slate-700/80 rounded-xl text-left transition-all group"
+          >
+            <div className="font-semibold text-xs text-slate-200 group-hover:text-emerald-400">
+              1. 26-Biomarker Smart Report (P Vijay Kumar)
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">
+              9 reports (2023–2026), 10 clinical panels, full multi-year progression curves.
+            </p>
+          </button>
+
           <button
             onClick={() => onSelectQuickDemo('arjun')}
             className="p-3 bg-slate-800/80 hover:bg-emerald-950/40 hover:border-emerald-500/40 border border-slate-700/80 rounded-xl text-left transition-all group"
           >
             <div className="font-semibold text-xs text-slate-200 group-hover:text-emerald-400">
-              1. Multi-Report Timeline (Arjun Sharma)
+              2. Multi-Report Timeline (Arjun Sharma)
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               3 sequential reports showing TSH & Total Cholesterol correlated upward shift.
@@ -152,7 +164,7 @@ export default function UploadPage({
             className="p-3 bg-slate-800/80 hover:bg-emerald-950/40 hover:border-emerald-500/40 border border-slate-700/80 rounded-xl text-left transition-all group"
           >
             <div className="font-semibold text-xs text-slate-200 group-hover:text-emerald-400">
-              2. Missing Reference Range (Kavita Patel)
+              3. Missing Reference Range (Kavita Patel)
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               Demonstrates safe unconfirmed handling without guessing or fabricating ranges.
@@ -166,14 +178,14 @@ export default function UploadPage({
                 status: 'needs_confirmation',
                 similarity: 45.2,
                 extracted_name: 'Priya Sharma',
-                active_name: selectedPatient?.name || 'Arjun Sharma',
-                message: "Report name 'Priya Sharma' does not match active profile 'Arjun Sharma' (45% match). Confirm before saving."
+                active_name: selectedPatient?.name || 'P Vijay Kumar',
+                message: "Report name 'Priya Sharma' does not match active profile (45% match). Confirm before saving."
               });
             }}
             className="p-3 bg-slate-800/80 hover:bg-amber-950/40 hover:border-amber-500/40 border border-slate-700/80 rounded-xl text-left transition-all group"
           >
             <div className="font-semibold text-xs text-slate-200 group-hover:text-amber-400">
-              3. Family Profile Mismatch Test
+              4. Family Profile Mismatch Test
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
               Tests blocking safety confirmation for family member report cross-talk.
