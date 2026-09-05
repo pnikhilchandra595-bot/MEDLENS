@@ -1,11 +1,21 @@
 {
+  "_metadata": {
+    "source_citations": [
+      "Tietz Textbook of Clinical Chemistry and Molecular Diagnostics, 6th Edition (Burtis, Ashwood, Bruns)",
+      "Harrison's Principles of Internal Medicine, 21st Edition (Loscalzo, Fauci, Kasper)",
+      "LOINC (Logical Observation Identifiers Names and Codes) Reference Database v2.77, Regenstrief Institute",
+      "American Association for Clinical Chemistry (AACC) Clinical Reference Laboratory Guidelines"
+    ],
+    "description": "Physiologically plausible biological bounds (absolute min/max) and typical adult reference intervals used for automated sanity checking, OCR hallucination filtering, and confidence tiering."
+  },
   "718-7": {
     "test_name": "Hemoglobin",
     "min_bio": 2.0,
     "max_bio": 25.0,
     "ref_low": 12.0,
     "ref_high": 17.5,
-    "unit": "g/dL"
+    "unit": "g/dL",
+    "citation": "Tietz 6th Ed, Ch. 28 Hematology & LOINC 718-7"
   },
   "787-2": {
     "test_name": "MCV",
@@ -13,7 +23,8 @@
     "max_bio": 150.0,
     "ref_low": 80.0,
     "ref_high": 100.0,
-    "unit": "fL"
+    "unit": "fL",
+    "citation": "Tietz 6th Ed, Erythrocyte Indices & LOINC 787-2"
   },
   "6690-2": {
     "test_name": "WBC",
@@ -21,7 +32,8 @@
     "max_bio": 200.0,
     "ref_low": 4.0,
     "ref_high": 11.0,
-    "unit": "10^3/uL"
+    "unit": "10^3/uL",
+    "citation": "Harrison's 21st Ed, App. Laboratory Values & LOINC 6690-2"
   },
   "777-3": {
     "test_name": "Platelet Count",
@@ -29,7 +41,8 @@
     "max_bio": 2000.0,
     "ref_low": 150.0,
     "ref_high": 450.0,
-    "unit": "10^3/uL"
+    "unit": "10^3/uL",
+    "citation": "Tietz 6th Ed, Platelet Physiology & LOINC 777-3"
   },
   "3016-3": {
     "test_name": "TSH",
@@ -37,7 +50,8 @@
     "max_bio": 200.0,
     "ref_low": 0.4,
     "ref_high": 4.5,
-    "unit": "uIU/mL"
+    "unit": "uIU/mL",
+    "citation": "Harrison's 21st Ed, Thyroid Function Testing & LOINC 3016-3"
   },
   "2093-3": {
     "test_name": "Total Cholesterol",
@@ -45,7 +59,8 @@
     "max_bio": 1000.0,
     "ref_low": 125.0,
     "ref_high": 200.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "NCEP Adult Treatment Panel III & LOINC 2093-3"
   },
   "2571-8": {
     "test_name": "Triglycerides",
@@ -53,7 +68,8 @@
     "max_bio": 3000.0,
     "ref_low": 50.0,
     "ref_high": 150.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "NCEP ATP III Guidelines & LOINC 2571-8"
   },
   "2085-9": {
     "test_name": "HDL Cholesterol",
@@ -61,7 +77,8 @@
     "max_bio": 150.0,
     "ref_low": 40.0,
     "ref_high": 60.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "AACC Clinical Chemistry & LOINC 2085-9"
   },
   "13457-7": {
     "test_name": "LDL Cholesterol",
@@ -69,7 +86,8 @@
     "max_bio": 500.0,
     "ref_low": 50.0,
     "ref_high": 100.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "AHA/ACC Cholesterol Clinical Guidelines & LOINC 13457-7"
   },
   "1558-6": {
     "test_name": "Fasting Glucose",
@@ -77,7 +95,8 @@
     "max_bio": 1000.0,
     "ref_low": 70.0,
     "ref_high": 99.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "American Diabetes Association (ADA) Standards of Care 2024 & LOINC 1558-6"
   },
   "2345-7": {
     "test_name": "Blood Glucose",
@@ -85,7 +104,8 @@
     "max_bio": 1200.0,
     "ref_low": 70.0,
     "ref_high": 140.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "ADA Guidelines & LOINC 2345-7"
   },
   "4548-4": {
     "test_name": "HbA1c",
@@ -93,7 +113,8 @@
     "max_bio": 22.0,
     "ref_low": 4.0,
     "ref_high": 5.6,
-    "unit": "%"
+    "unit": "%",
+    "citation": "National Glycohemoglobin Standardization Program (NGSP) & LOINC 4548-4"
   },
   "2160-0": {
     "test_name": "Serum Creatinine",
@@ -101,7 +122,8 @@
     "max_bio": 30.0,
     "ref_low": 0.6,
     "ref_high": 1.2,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "KDIGO Clinical Practice Guideline for Acute Kidney Injury & LOINC 2160-0"
   },
   "3094-0": {
     "test_name": "Blood Urea Nitrogen",
@@ -109,7 +131,8 @@
     "max_bio": 300.0,
     "ref_low": 7.0,
     "ref_high": 20.0,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "Tietz 6th Ed, Renal Function Biomarkers & LOINC 3094-0"
   },
   "3084-1": {
     "test_name": "Serum Uric Acid",
@@ -117,7 +140,8 @@
     "max_bio": 30.0,
     "ref_low": 3.5,
     "ref_high": 7.2,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "Harrison's 21st Ed & LOINC 3084-1"
   },
   "1742-6": {
     "test_name": "SGPT / ALT",
@@ -125,7 +149,8 @@
     "max_bio": 5000.0,
     "ref_low": 7.0,
     "ref_high": 56.0,
-    "unit": "U/L"
+    "unit": "U/L",
+    "citation": "ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries & LOINC 1742-6"
   },
   "1920-8": {
     "test_name": "SGOT / AST",
@@ -133,7 +158,8 @@
     "max_bio": 5000.0,
     "ref_low": 10.0,
     "ref_high": 40.0,
-    "unit": "U/L"
+    "unit": "U/L",
+    "citation": "ACG Clinical Guideline: Liver Enzymes & LOINC 1920-8"
   },
   "1975-2": {
     "test_name": "Total Bilirubin",
@@ -141,7 +167,8 @@
     "max_bio": 50.0,
     "ref_low": 0.2,
     "ref_high": 1.2,
-    "unit": "mg/dL"
+    "unit": "mg/dL",
+    "citation": "Tietz 6th Ed, Hepatic Function & LOINC 1975-2"
   },
   "6768-6": {
     "test_name": "Alkaline Phosphatase",
@@ -149,7 +176,8 @@
     "max_bio": 2000.0,
     "ref_low": 44.0,
     "ref_high": 147.0,
-    "unit": "U/L"
+    "unit": "U/L",
+    "citation": "Tietz 6th Ed & LOINC 6768-6"
   },
   "2951-2": {
     "test_name": "Sodium",
@@ -157,7 +185,8 @@
     "max_bio": 180.0,
     "ref_low": 135.0,
     "ref_high": 145.0,
-    "unit": "mmol/L"
+    "unit": "mmol/L",
+    "citation": "Harrison's 21st Ed, Electrolyte Disorders & LOINC 2951-2"
   },
   "2823-3": {
     "test_name": "Potassium",
@@ -165,7 +194,8 @@
     "max_bio": 12.0,
     "ref_low": 3.5,
     "ref_high": 5.1,
-    "unit": "mmol/L"
+    "unit": "mmol/L",
+    "citation": "Harrison's 21st Ed & LOINC 2823-3"
   },
   "1653-3": {
     "test_name": "Vitamin D",
@@ -173,7 +203,8 @@
     "max_bio": 250.0,
     "ref_low": 30.0,
     "ref_high": 100.0,
-    "unit": "ng/mL"
+    "unit": "ng/mL",
+    "citation": "Endocrine Society Clinical Practice Guideline on Vitamin D & LOINC 1653-3"
   },
   "1988-5": {
     "test_name": "Vitamin B12",
@@ -181,6 +212,7 @@
     "max_bio": 3000.0,
     "ref_low": 200.0,
     "ref_high": 900.0,
-    "unit": "pg/mL"
+    "unit": "pg/mL",
+    "citation": "Tietz 6th Ed, Vitamins & LOINC 1988-5"
   }
 }

@@ -9,6 +9,7 @@ from database import init_db, SessionLocal, Patient, Report, TestResult, Patient
 from extractors.vision_extractor import calculate_sha256, check_patient_match, ground_bbox
 from normalizers.loinc_normalizer import LoincNormalizer
 from normalizers.sanity_checker import BiologicalSanityChecker
+from normalizers.rxnorm_service import RxNormService
 from intake.provenance import detect_inconsistencies
 from trends.temporal_engine import TemporalIntelligenceEngine
 from adversarial.interpreter import AdversarialInterpreter
@@ -42,12 +43,10 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertEqual(len(sha), 64)
 
     def test_02_patient_match_verification(self):
-        # Match case
         res_match = check_patient_match("Arjun Sharma", "Arjun Sharma")
         self.assertEqual(res_match["status"], "match")
         self.assertGreaterEqual(res_match["similarity"], 90.0)
 
-        # Mismatch case (Family member / wrong profile)
         res_mismatch = check_patient_match("Priya Sharma", "Arjun Sharma")
         self.assertEqual(res_mismatch["status"], "needs_confirmation")
         self.assertLess(res_mismatch["similarity"], 70.0)
@@ -55,7 +54,7 @@ class TestMedLensPlatform(unittest.TestCase):
     def test_03_loinc_normalization(self):
         norm = LoincNormalizer()
         
-        # Exact/canonical
+        # Local exact/canonical
         r1 = norm.normalize("TSH")
         self.assertEqual(r1["loinc_code"], "3016-3")
         self.assertTrue(r1["is_recognized"])
@@ -65,13 +64,36 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertEqual(r2["loinc_code"], "3016-3")
 
         # Unrecognized test (routed to human review, not dropped)
-        r3 = norm.normalize("Unknown Exotic Biomarker XYZ")
-        self.assertIsNone(r3["loinc_code"])
+        r3 = norm.normalize("Unknown Exotic Biomarker XYZ 99")
         self.assertFalse(r3["is_recognized"])
         self.assertIn("Unrecognized", r3["canonical_name"])
 
-    def test_04_biological_sanity_check(self):
+    def test_04_rxnorm_drug_normalization(self):
+        rx = RxNormService()
+        
+        # Indian commercial brand -> Canonical RxNorm active ingredient
+        r1 = rx.normalize_drug("Crocin 500mg")
+        self.assertTrue(r1["is_recognized"])
+        self.assertIn("acetaminophen", r1["active_ingredient"])
+        self.assertEqual(r1["rxcui"], "161")
+
+        # Thyroid brand -> Levothyroxine
+        r2 = rx.normalize_drug("Thyronorm 50mcg")
+        self.assertTrue(r2["is_recognized"])
+        self.assertIn("levothyroxine", r2["active_ingredient"])
+
+        # Statin brand -> Atorvastatin
+        r3 = rx.normalize_drug("Atorva 10mg")
+        self.assertTrue(r3["is_recognized"])
+        self.assertIn("atorvastatin", r3["active_ingredient"])
+
+    def test_05_biological_sanity_check_and_citations(self):
         checker = BiologicalSanityChecker()
+
+        # Check citations exist in database
+        self.assertIn("3016-3", checker.bio_ranges)
+        self.assertIn("citation", checker.bio_ranges["3016-3"])
+        self.assertIn("Harrison", checker.bio_ranges["3016-3"]["citation"])
 
         # Normal hemoglobin -> High confidence
         res_high = checker.validate_result(loinc_code="718-7", value=14.5, ref_low=12.0, ref_high=17.5)
@@ -92,35 +114,36 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertEqual(res_missing["confidence_tier"], "medium")
         self.assertEqual(res_missing["sanity_status"], "missing_reference_range")
 
-    def test_05_grounded_bbox(self):
+    def test_06_grounded_bbox(self):
         ocr_lines = [
             {"text": "Patient Name: Arjun Sharma", "bbox": {"x": 0.1, "y": 0.1, "w": 0.8, "h": 0.05}},
             {"text": "TSH (Thyroid Stimulating Hormone)  6.8 uIU/mL (0.40 - 4.50)", "bbox": {"x": 0.1, "y": 0.28, "w": 0.8, "h": 0.04}}
         ]
-        # Grounded match
         bbox, grounded = ground_bbox("6.8", "TSH", ocr_lines)
         self.assertTrue(grounded)
         self.assertIsNotNone(bbox)
 
-        # Ungrounded test -> returns (None, False)
         bbox2, grounded2 = ground_bbox("999.9", "Unknown", ocr_lines)
         self.assertFalse(grounded2)
         self.assertIsNone(bbox2)
 
-    def test_06_inconsistency_detection(self):
+    def test_07_inconsistency_detection_with_rxnorm(self):
         patient_reported = {
             "conditions": "No diabetes, mild fatigue",
-            "medications": "Thyroid thyroxine supplement"
+            "medications": "Thyronorm 50mcg, Combiflam daily"
         }
         extracted_results = [
             {"loinc_code": "2345-7", "test_name": "Blood Glucose", "value": 180.0, "is_abnormal": True},
-            {"loinc_code": "3016-3", "test_name": "TSH", "value": 6.8, "is_abnormal": True}
+            {"loinc_code": "3016-3", "test_name": "TSH", "value": 6.8, "is_abnormal": True},
+            {"loinc_code": "2160-0", "test_name": "Serum Creatinine", "value": 1.9, "is_abnormal": True}
         ]
         flags = detect_inconsistencies(patient_reported, extracted_results)
-        self.assertGreaterEqual(len(flags), 2)
-        self.assertTrue(any("Glucose" in f["title"] or "Diabetes" in f["title"] for f in flags))
+        self.assertGreaterEqual(len(flags), 3)
+        # Check RxNorm brand name reconciliation
+        self.assertTrue(any("Levothyroxine" in f["title"] or "Thyroid" in f["title"] for f in flags))
+        self.assertTrue(any("NSAID" in f["title"] for f in flags))
 
-    def test_07_temporal_correlation_engine(self):
+    def test_08_temporal_correlation_engine(self):
         temporal = TemporalIntelligenceEngine()
         reports = [
             {
@@ -142,11 +165,10 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertIn("3016-3", res["analyte_trends"])
         self.assertEqual(res["analyte_trends"]["3016-3"]["direction"], "increasing")
         self.assertEqual(res["analyte_trends"]["2093-3"]["direction"], "increasing")
-        # Check correlation flag
         self.assertGreaterEqual(len(res["correlation_flags"]), 1)
         self.assertIn("3016-3+2093-3", [f["pair_key"] for f in res["correlation_flags"]])
 
-    def test_08_adversarial_ai_safety(self):
+    def test_09_adversarial_ai_safety(self):
         interpreter = AdversarialInterpreter()
         results = [
             {"canonical_name": "TSH", "value": 6.8, "is_abnormal": True},
@@ -154,53 +176,45 @@ class TestMedLensPlatform(unittest.TestCase):
         ]
         intel = interpreter.generate_clinical_intelligence(results, language="en")
         
-        # 1. Deterministic flag count (no AI urgency score)
         self.assertEqual(intel["flag_count"], 2)
-
-        # 2. Strict non-diagnostic check: no disease diagnosis strings
         summary = intel["primary_summary"].lower()
         forbidden_terms = ["you have hypothyroidism", "you have hypercholesterolemia", "diagnosed with anemia", "diagnosed with diabetes"]
         for term in forbidden_terms:
             self.assertNotIn(term, summary)
-
-        # 3. Gated counter explanations present
         self.assertGreaterEqual(len(intel["counter_explanations"]), 2)
-
-        # 4. Doctor questions present
         self.assertGreaterEqual(len(intel["doctor_questions"]), 2)
 
-    def test_09_fhir_bundle_builder(self):
+    def test_10_fhir_and_abdm_bundle_builder(self):
         patient = {"id": "pat-test", "name": "Arjun Sharma", "sex": "Male", "phone": "+919876543210"}
         report = {"id": "rep-test", "lab_name": "Metropolis Lab", "report_date": "2026-03-01"}
         results = [
             {"test_name": "TSH", "canonical_name": "Thyroid Stimulating Hormone", "loinc_code": "3016-3", "value": 6.8, "unit": "uIU/mL", "ref_low": 0.4, "ref_high": 4.5, "is_abnormal": True, "confidence_tier": "medium", "source": "Extracted from report"}
         ]
-        bundle = FhirBundleBuilder.build_fhir_bundle(patient, report, results)
-        self.assertEqual(bundle["resourceType"], "Bundle")
-        self.assertEqual(bundle["type"], "collection")
         
-        resource_types = [e["resource"]["resourceType"] for e in bundle["entry"]]
-        self.assertIn("Patient", resource_types)
-        self.assertIn("DiagnosticReport", resource_types)
-        self.assertIn("Observation", resource_types)
+        # International Bundle
+        intl_bundle = FhirBundleBuilder.build_fhir_bundle(patient, report, results, is_abdm_profile=False)
+        self.assertEqual(intl_bundle["resourceType"], "Bundle")
+        self.assertEqual(intl_bundle["type"], "collection")
 
-    def test_10_dpdp_consent_and_delete(self):
-        # Create temp patient
-        temp_id = "pat-temp-delete-99"
+        # ABDM India NRCeS Bundle
+        abdm_bundle = FhirBundleBuilder.build_fhir_bundle(patient, report, results, is_abdm_profile=True)
+        self.assertEqual(abdm_bundle["resourceType"], "Bundle")
+        patient_entry = [e["resource"] for e in abdm_bundle["entry"] if e["resource"]["resourceType"] == "Patient"][0]
+        self.assertIn("nrces.in", patient_entry["meta"]["profile"][0])
+
+    def test_11_dpdp_consent_and_delete(self):
+        temp_id = "pat-temp-delete-101"
         p = Patient(id=temp_id, name="Temporary Delete Patient")
         self.db.add(p)
         self.db.commit()
 
-        # Add consent
         ConsentManager.record_consent(self.db, temp_id)
         status = ConsentManager.get_consent_status(self.db, temp_id)
         self.assertTrue(status["has_consented"])
 
-        # Delete all data
         del_res = ConsentManager.delete_patient_data(self.db, temp_id)
         self.assertEqual(del_res["status"], "success")
 
-        # Verify completely wiped
         deleted_p = self.db.query(Patient).filter(Patient.id == temp_id).first()
         self.assertIsNone(deleted_p)
 

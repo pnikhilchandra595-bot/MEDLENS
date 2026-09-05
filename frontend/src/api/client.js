@@ -10,6 +10,16 @@ export async function fetchGlossary() {
   return res.json();
 }
 
+export async function searchNlmLoinc(query) {
+  const res = await fetch(`${API_BASE}/loinc/search?query=${encodeURIComponent(query)}`);
+  return res.json();
+}
+
+export async function searchRxNormDrug(query) {
+  const res = await fetch(`${API_BASE}/drugs/search?query=${encodeURIComponent(query)}`);
+  return res.json();
+}
+
 export async function fetchPatients() {
   const res = await fetch(`${API_BASE}/patients`);
   return res.json();
@@ -58,6 +68,11 @@ export async function fetchPatientTimeline(patientId) {
 
 export async function exportFhirBundle(reportId) {
   const res = await fetch(`${API_BASE}/reports/${reportId}/fhir`);
+  return res.json();
+}
+
+export async function exportAbdmBundle(reportId) {
+  const res = await fetch(`${API_BASE}/reports/${reportId}/abdm`);
   return res.json();
 }
 

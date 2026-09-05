@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   UploadCloud, 
   FileText, 
@@ -8,9 +8,10 @@ import {
   UserCheck, 
   Sparkles, 
   FileCheck,
-  AlertTriangle
+  AlertTriangle,
+  Pill
 } from 'lucide-react';
-import { uploadReport, savePatientIntake } from '../api/client';
+import { uploadReport, savePatientIntake, searchRxNormDrug } from '../api/client';
 import ProvenanceBadge from '../components/ProvenanceBadge';
 
 export default function UploadPage({
@@ -31,10 +32,25 @@ export default function UploadPage({
     symptoms: 'Occasional sluggishness, cold sensitivity, mild evening fatigue',
     conditions: 'No known diabetes, familial hypercholesterolemia',
     allergies: 'Penicillin',
-    medications: 'Multivitamin daily'
+    medications: 'Thyronorm 50mcg, Atorva 10mg'
   });
 
+  const [normalizedMeds, setNormalizedMeds] = useState([]);
   const fileInputRef = useRef(null);
+
+  // Live RxNorm concept resolution on medication input change
+  useEffect(() => {
+    const raw = intake.medications || '';
+    const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length > 0) {
+      Promise.all(parts.map(p => searchRxNormDrug(p).catch(() => null)))
+        .then((res) => {
+          setNormalizedMeds(res.filter(Boolean));
+        });
+    } else {
+      setNormalizedMeds([]);
+    }
+  }, [intake.medications]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -102,13 +118,13 @@ export default function UploadPage({
       <div className="text-center space-y-3 max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Multi-modal Vision + Document OCR Grounding</span>
+          <span>Live NLM LOINC API + NLM RxNorm Drug Normalization</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white font-display">
-          Upload & Patient Ingestion Engine
+          Upload & Clinical Ingestion Engine
         </h1>
         <p className="text-sm text-slate-400 leading-relaxed">
-          Ingest lab reports with SHA-256 tamper-evident hashing, honest two-tier confidence ranking, and 3-tier provenance tracking.
+          Ingest lab reports with SHA-256 tamper-evident hashing, honest two-tier confidence ranking, live RxNorm medication reconciliation, and 3-tier provenance tracking.
         </p>
       </div>
 
@@ -280,7 +296,7 @@ export default function UploadPage({
           </div>
         </div>
 
-        {/* Right Column: Patient Information Intake Form (Phase 1.5) */}
+        {/* Right Column: Patient Information Intake Form (Phase 1.5 & 1.6 RxNorm) */}
         <div className="lg:col-span-6 space-y-6">
           <div className="bg-slate-900/70 rounded-2xl border border-slate-800 p-6 space-y-4">
             <div className="flex items-center justify-between">
@@ -340,32 +356,56 @@ export default function UploadPage({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Allergies</label>
-                <input
-                  type="text"
-                  value={intake.allergies}
-                  onChange={(e) => setIntake({ ...intake, allergies: e.target.value })}
-                  placeholder="e.g., Penicillin, Sulfa..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Current Medications</label>
+                <label className="block text-xs text-slate-400 mb-1">
+                  Current Medications (Auto-Normalized via NLM RxNorm)
+                </label>
                 <input
                   type="text"
                   value={intake.medications}
                   onChange={(e) => setIntake({ ...intake, medications: e.target.value })}
-                  placeholder="e.g., Atorvastatin 10mg..."
+                  placeholder="e.g., Thyronorm 50mcg, Atorva 10mg, Crocin, Metformin..."
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
                 />
               </div>
+
+              {/* Live RxNorm Resolved Badges */}
+              {normalizedMeds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {normalizedMeds.map((med, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-950/50 border border-cyan-500/30 text-[10px] text-cyan-300"
+                      title={med.source}
+                    >
+                      <Pill className="w-2.5 h-2.5 text-cyan-400" />
+                      <span>{med.canonical_name}</span>
+                      {med.rxcui && (
+                        <span className="font-mono text-[9px] text-cyan-400/70 bg-cyan-900/40 px-1 rounded">
+                          RxCUI: {med.rxcui}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Allergies</label>
+              <input
+                type="text"
+                value={intake.allergies}
+                onChange={(e) => setIntake({ ...intake, allergies: e.target.value })}
+                placeholder="e.g., Penicillin, Sulfa..."
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              />
             </div>
 
             <div className="pt-2 text-[11px] text-slate-500 flex items-center justify-between">
               <span>Automatic conflict check will run upon upload</span>
-              <span className="text-emerald-400 font-mono">Status: Ready</span>
+              <span className="text-emerald-400 font-mono">RxNorm: Active</span>
             </div>
           </div>
         </div>

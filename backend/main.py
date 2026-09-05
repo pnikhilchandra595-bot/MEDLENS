@@ -16,6 +16,7 @@ from database import (
 from extractors.vision_extractor import VisionExtractionEngine, check_patient_match, calculate_sha256
 from normalizers.loinc_normalizer import LoincNormalizer
 from normalizers.sanity_checker import BiologicalSanityChecker
+from normalizers.rxnorm_service import RxNormService
 from intake.provenance import detect_inconsistencies, PROVENANCE_TAGS
 from trends.temporal_engine import TemporalIntelligenceEngine
 from adversarial.interpreter import AdversarialInterpreter
@@ -28,7 +29,7 @@ from samples.sample_data import seed_sample_database
 app = FastAPI(
     title="MedLens API",
     description="Clinical Laboratory Report Intelligence, Provenance, Temporal Tracking & Patient Communication Platform",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Enable CORS for frontend development
@@ -51,6 +52,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 vision_engine = VisionExtractionEngine()
 loinc_normalizer = LoincNormalizer()
 sanity_checker = BiologicalSanityChecker()
+rxnorm_service = RxNormService()
 temporal_engine = TemporalIntelligenceEngine()
 adversarial_interpreter = AdversarialInterpreter()
 whatsapp_service = WhatsAppService()
@@ -98,7 +100,7 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "gemini_vision_enabled": bool(os.environ.get("GEMINI_API_KEY")),
         "twilio_whatsapp_enabled": bool(os.environ.get("TWILIO_ACCOUNT_SID")),
-        "standards": ["FHIR R4", "LOINC", "DPDP Act 2023"]
+        "standards": ["HL7 FHIR R4", "ABDM M3 India", "LOINC (NLM API)", "RxNorm", "DPDP Act 2023"]
     }
 
 @app.get("/api/glossary")
@@ -109,6 +111,16 @@ def get_glossary():
         with open(glossary_path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
+
+@app.get("/api/loinc/search")
+def search_loinc(query: str = Query(..., min_length=2)):
+    """Live search across the official NLM LOINC Clinical Tables API."""
+    return loinc_normalizer.normalize(query)
+
+@app.get("/api/drugs/search")
+def search_drug(query: str = Query(..., min_length=2)):
+    """Live NLM RxNorm drug normalization and active ingredient lookup."""
+    return rxnorm_service.normalize_drug(query)
 
 @app.get("/api/patients")
 def list_patients(db: Session = Depends(get_db)):
@@ -269,7 +281,7 @@ def get_report_details(
 
     temporal_data = temporal_engine.analyze_patient_timeline(historical_payload)
 
-    # Inconsistency checks (Phase 1.5)
+    # Inconsistency checks (Phase 1.5 + RxNorm)
     intake_dict = {
         "conditions": intake.conditions if intake else "",
         "symptoms": intake.symptoms if intake else "",
@@ -386,7 +398,7 @@ async def upload_report(
         sha256_hash=sha256_hash
     ))
 
-    # Process and normalize results
+    # Process and normalize results (NLM LOINC + Sanity Checks)
     processed_results = []
     for item in raw_extraction.get("results", []):
         raw_name = item.get("test_name", "")
@@ -492,7 +504,39 @@ def export_fhir(report_id: str, db: Session = Depends(get_db)):
     bundle = FhirBundleBuilder.build_fhir_bundle(
         patient_data={"id": patient.id, "name": patient.name, "sex": patient.sex, "phone": patient.phone},
         report_data={"id": report.id, "lab_name": report.lab_name, "report_date": report.report_date},
-        test_results=results_data
+        test_results=results_data,
+        is_abdm_profile=False
+    )
+    return bundle
+
+@app.get("/api/reports/{report_id}/abdm")
+def export_abdm_fhir(report_id: str, db: Session = Depends(get_db)):
+    """Exports ABDM (Ayushman Bharat Digital Mission) India NRCeS profile FHIR Bundle."""
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    patient = db.query(Patient).filter(Patient.id == report.patient_id).first()
+
+    results_data = [
+        {
+            "test_name": tr.test_name,
+            "canonical_name": tr.canonical_name,
+            "loinc_code": tr.loinc_code,
+            "value": tr.value,
+            "unit": tr.unit,
+            "ref_low": tr.ref_low,
+            "ref_high": tr.ref_high,
+            "is_abnormal": tr.is_abnormal,
+            "confidence_tier": tr.confidence_tier,
+            "source": tr.source
+        } for tr in report.test_results
+    ]
+
+    bundle = FhirBundleBuilder.build_fhir_bundle(
+        patient_data={"id": patient.id, "name": patient.name, "sex": patient.sex, "phone": patient.phone, "abha_id": f"91-8765-4321-{patient.id[:4]}"},
+        report_data={"id": report.id, "lab_name": report.lab_name, "report_date": report.report_date},
+        test_results=results_data,
+        is_abdm_profile=True
     )
     return bundle
 
@@ -526,7 +570,6 @@ def send_whatsapp(req: WhatsAppRequest):
 
 @app.post("/api/seed")
 def reseed_database(db: Session = Depends(get_db)):
-    # Clear and reseed demo data
     db.query(ReportHash).delete()
     db.query(TestResult).delete()
     db.query(Report).delete()

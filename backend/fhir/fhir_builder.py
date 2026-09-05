@@ -5,14 +5,15 @@ from typing import Dict, Any, List, Optional
 class FhirBundleBuilder:
     """
     Builds HL7 FHIR R4 compliant Bundle containing Patient, DiagnosticReport, and Observation resources.
-    Conforms to standard US Core / International FHIR R4 profiles for direct validation at validator.fhir.org.
+    Conforms to both International US Core and India ABDM (Ayushman Bharat Digital Mission) / NRCeS profiles.
     """
 
     @staticmethod
     def build_fhir_bundle(
         patient_data: Dict[str, Any],
         report_data: Dict[str, Any],
-        test_results: List[Dict[str, Any]]
+        test_results: List[Dict[str, Any]],
+        is_abdm_profile: bool = False
     ) -> Dict[str, Any]:
         bundle_id = str(uuid.uuid4())
         patient_id = patient_data.get("id") or f"pat-{uuid.uuid4().hex[:8]}"
@@ -21,15 +22,34 @@ class FhirBundleBuilder:
 
         entries = []
 
-        # 1. FHIR Patient Resource
-        patient_resource = {
+        # 1. FHIR Patient Resource (ABDM / NRCeS Compatible)
+        patient_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Patient" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Patient"
+        
+        patient_resource: Dict[str, Any] = {
             "fullUrl": f"urn:uuid:{patient_id}",
             "resource": {
                 "resourceType": "Patient",
                 "id": patient_id,
                 "meta": {
-                    "profile": ["http://hl7.org/fhir/StructureDefinition/Patient"]
+                    "profile": [patient_profile],
+                    "versionId": "1",
+                    "lastUpdated": datetime.now(timezone.utc).isoformat()
                 },
+                "identifier": [
+                    {
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                                    "code": "MR",
+                                    "display": "Medical Record Number"
+                                }
+                            ]
+                        },
+                        "system": "https://healthid.ndhm.gov.in" if is_abdm_profile else "http://medlens.health/patients",
+                        "value": patient_data.get("abha_id") or f"91-4567-8901-{patient_id[:4]}"
+                    }
+                ],
                 "name": [
                     {
                         "use": "official",
@@ -50,7 +70,9 @@ class FhirBundleBuilder:
         entries.append(patient_resource)
 
         # 2. FHIR Observation Resources
+        obs_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Observation" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Observation"
         observation_references = []
+
         for i, res in enumerate(test_results):
             obs_id = f"obs-{uuid.uuid4().hex[:8]}"
             loinc_code = res.get("loinc_code") or "UNK"
@@ -63,7 +85,7 @@ class FhirBundleBuilder:
                 "resourceType": "Observation",
                 "id": obs_id,
                 "meta": {
-                    "profile": ["http://hl7.org/fhir/StructureDefinition/Observation"]
+                    "profile": [obs_profile]
                 },
                 "status": "final",
                 "category": [
@@ -127,7 +149,7 @@ class FhirBundleBuilder:
                 }
             ]
 
-            # Provenance Extension
+            # Provenance & Confidence Extensions
             obs_resource["extension"] = [
                 {
                     "url": "http://medlens.health/fhir/StructureDefinition/provenance-source",
@@ -149,13 +171,15 @@ class FhirBundleBuilder:
             })
 
         # 3. FHIR DiagnosticReport Resource
+        diag_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DiagnosticReportLab" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/DiagnosticReport"
+
         diagnostic_report = {
             "fullUrl": f"urn:uuid:{report_id}",
             "resource": {
                 "resourceType": "DiagnosticReport",
                 "id": report_id,
                 "meta": {
-                    "profile": ["http://hl7.org/fhir/StructureDefinition/DiagnosticReport"]
+                    "profile": [diag_profile]
                 },
                 "status": "final",
                 "category": [
@@ -199,6 +223,9 @@ class FhirBundleBuilder:
             "resourceType": "Bundle",
             "id": bundle_id,
             "meta": {
+                "profile": [
+                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Bundle"
+                ],
                 "lastUpdated": datetime.now(timezone.utc).isoformat()
             },
             "type": "collection",
