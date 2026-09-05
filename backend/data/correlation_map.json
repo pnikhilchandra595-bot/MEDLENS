@@ -1,0 +1,42 @@
+{
+  "3016-3+2093-3": {
+    "pair_name": "TSH + Total Cholesterol",
+    "description": "Your TSH and Total Cholesterol levels have both shifted upward across your recorded timeline."
+  },
+  "3016-3+2571-8": {
+    "pair_name": "TSH + Triglycerides",
+    "description": "Your TSH and Triglyceride readings have moved in a parallel upward trajectory across consecutive reports."
+  },
+  "718-7+787-2": {
+    "pair_name": "Hemoglobin + MCV",
+    "description": "Your Hemoglobin and Mean Corpuscular Volume (MCV) values have both trended lower across your last reports."
+  },
+  "718-7+2276-4": {
+    "pair_name": "Hemoglobin + Ferritin",
+    "description": "Both your Hemoglobin and Serum Ferritin markers have shown a simultaneous downward trajectory over time."
+  },
+  "1558-6+4548-4": {
+    "pair_name": "Fasting Glucose + HbA1c",
+    "description": "Both your Fasting Glucose and 3-month Glycated Hemoglobin (HbA1c) readings have trended upward in tandem."
+  },
+  "2345-7+4548-4": {
+    "pair_name": "Blood Glucose + HbA1c",
+    "description": "Your spot Blood Glucose and cumulative HbA1c measurements have both shown elevated readings across reports."
+  },
+  "2160-0+33914-3": {
+    "pair_name": "Serum Creatinine + eGFR",
+    "description": "Serum Creatinine has risen while the estimated filtration rate (eGFR) has shifted downward across these dates."
+  },
+  "1742-6+1920-8": {
+    "pair_name": "SGPT (ALT) + SGOT (AST)",
+    "description": "Your SGPT (ALT) and SGOT (AST) liver enzyme markers have shown a concurrent upward movement across tests."
+  },
+  "1975-2+6768-6": {
+    "pair_name": "Total Bilirubin + Alkaline Phosphatase",
+    "description": "Both Total Bilirubin and Alkaline Phosphatase levels have demonstrated a concurrent upward variation."
+  },
+  "2093-3+2571-8": {
+    "pair_name": "Total Cholesterol + Triglycerides",
+    "description": "Your Total Cholesterol and Triglycerides have moved upward in a concordant lipid pattern across visits."
+  }
+}

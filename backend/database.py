@@ -1,0 +1,126 @@
+import os
+from datetime import datetime, timezone
+from sqlalchemy import (
+    create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey
+)
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+
+DB_PATH = os.environ.get("MEDLENS_DB_PATH", os.path.join(os.path.dirname(__file__), "medlens.db"))
+DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+def get_utc_now():
+    return datetime.now(timezone.utc)
+
+class Patient(Base):
+    __tablename__ = "patients"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    age = Column(Integer, nullable=True)
+    sex = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=get_utc_now)
+
+    reports = relationship("Report", back_populates="patient", cascade="all, delete-orphan")
+    intakes = relationship("PatientReportedData", back_populates="patient", cascade="all, delete-orphan")
+    consents = relationship("Consent", back_populates="patient", cascade="all, delete-orphan")
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(String, primary_key=True, index=True)
+    patient_id = Column(String, ForeignKey("patients.id"), nullable=False, index=True)
+    lab_name = Column(String, nullable=True)
+    report_date = Column(String, nullable=True)
+    doctor_name = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_name = Column(String, nullable=True)
+    file_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=get_utc_now)
+
+    patient = relationship("Patient", back_populates="reports")
+    test_results = relationship("TestResult", back_populates="report", cascade="all, delete-orphan")
+    hashes = relationship("ReportHash", back_populates="report", cascade="all, delete-orphan")
+
+class TestResult(Base):
+    __tablename__ = "test_results"
+
+    id = Column(String, primary_key=True, index=True)
+    report_id = Column(String, ForeignKey("reports.id"), nullable=False, index=True)
+    patient_id = Column(String, nullable=False, index=True)
+    test_name = Column(String, nullable=False)
+    loinc_code = Column(String, nullable=True, index=True)
+    canonical_name = Column(String, nullable=True)
+    value = Column(Float, nullable=True)
+    raw_value = Column(String, nullable=True)
+    unit = Column(String, nullable=True)
+    ref_low = Column(Float, nullable=True)
+    ref_high = Column(Float, nullable=True)
+    ref_raw = Column(String, nullable=True)
+    is_abnormal = Column(Boolean, default=False)
+    confidence_tier = Column(String, default="high") # "high", "medium", "low"
+    legibility_flag = Column(Float, default=0.95)   # model's own self-reported readability
+    # Grounded bounding box in percentage coordinates (0.0 to 1.0)
+    bbox_x = Column(Float, nullable=True)
+    bbox_y = Column(Float, nullable=True)
+    bbox_w = Column(Float, nullable=True)
+    bbox_h = Column(Float, nullable=True)
+    is_grounded = Column(Boolean, default=False)
+    # Provenance tag: "Patient-reported" | "Extracted from report" | "AI-generated"
+    source = Column(String, default="Extracted from report")
+    created_at = Column(DateTime, default=get_utc_now)
+
+    report = relationship("Report", back_populates="test_results")
+
+class PatientReportedData(Base):
+    __tablename__ = "patient_reported_data"
+
+    id = Column(String, primary_key=True, index=True)
+    patient_id = Column(String, ForeignKey("patients.id"), nullable=False, index=True)
+    age = Column(Integer, nullable=True)
+    sex = Column(String, nullable=True)
+    symptoms = Column(Text, nullable=True)
+    conditions = Column(Text, nullable=True)
+    allergies = Column(Text, nullable=True)
+    medications = Column(Text, nullable=True)
+    source = Column(String, default="Patient-reported")
+    reported_at = Column(DateTime, default=get_utc_now)
+
+    patient = relationship("Patient", back_populates="intakes")
+
+class Consent(Base):
+    __tablename__ = "consents"
+
+    id = Column(String, primary_key=True, index=True)
+    patient_id = Column(String, ForeignKey("patients.id"), nullable=False, index=True)
+    consented_at = Column(DateTime, default=get_utc_now)
+    revoked_at = Column(DateTime, nullable=True)
+    purpose = Column(String, default="Clinical report extraction and temporal intelligence")
+    consent_ip = Column(String, nullable=True)
+
+    patient = relationship("Patient", back_populates="consents")
+
+class ReportHash(Base):
+    __tablename__ = "report_hashes"
+
+    id = Column(String, primary_key=True, index=True)
+    report_id = Column(String, ForeignKey("reports.id"), nullable=False, index=True)
+    sha256_hash = Column(String, nullable=False)
+    computed_at = Column(DateTime, default=get_utc_now)
+
+    report = relationship("Report", back_populates="hashes")
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

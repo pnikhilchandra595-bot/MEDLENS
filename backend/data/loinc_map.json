@@ -1,0 +1,380 @@
+{
+  "haemoglobin": {
+    "loinc": "718-7",
+    "name": "Hemoglobin [Mass/volume] in Blood",
+    "short_name": "Hemoglobin",
+    "unit": "g/dL",
+    "category": "Complete Blood Count"
+  },
+  "hemoglobin": {
+    "loinc": "718-7",
+    "name": "Hemoglobin [Mass/volume] in Blood",
+    "short_name": "Hemoglobin",
+    "unit": "g/dL",
+    "category": "Complete Blood Count"
+  },
+  "hb": {
+    "loinc": "718-7",
+    "name": "Hemoglobin [Mass/volume] in Blood",
+    "short_name": "Hemoglobin",
+    "unit": "g/dL",
+    "category": "Complete Blood Count"
+  },
+  "mcv": {
+    "loinc": "787-2",
+    "name": "MCV [Entitic volume] in Blood",
+    "short_name": "Mean Corpuscular Volume",
+    "unit": "fL",
+    "category": "Complete Blood Count"
+  },
+  "mch": {
+    "loinc": "785-6",
+    "name": "MCH [Entitic mass] in Blood",
+    "short_name": "Mean Corpuscular Hemoglobin",
+    "unit": "pg",
+    "category": "Complete Blood Count"
+  },
+  "mchc": {
+    "loinc": "786-4",
+    "name": "MCHC [Mass/volume] in Blood",
+    "short_name": "Mean Corpuscular Hb Conc.",
+    "unit": "g/dL",
+    "category": "Complete Blood Count"
+  },
+  "rbc": {
+    "loinc": "789-8",
+    "name": "Erythrocytes [#/volume] in Blood",
+    "short_name": "Red Blood Cell Count",
+    "unit": "10^6/uL",
+    "category": "Complete Blood Count"
+  },
+  "wbc": {
+    "loinc": "6690-2",
+    "name": "Leukocytes [#/volume] in Blood",
+    "short_name": "White Blood Cell Count",
+    "unit": "10^3/uL",
+    "category": "Complete Blood Count"
+  },
+  "total leukocyte count": {
+    "loinc": "6690-2",
+    "name": "Leukocytes [#/volume] in Blood",
+    "short_name": "White Blood Cell Count",
+    "unit": "10^3/uL",
+    "category": "Complete Blood Count"
+  },
+  "platelet count": {
+    "loinc": "777-3",
+    "name": "Platelets [#/volume] in Blood",
+    "short_name": "Platelet Count",
+    "unit": "10^3/uL",
+    "category": "Complete Blood Count"
+  },
+  "tsh": {
+    "loinc": "3016-3",
+    "name": "Thyrotropin [Units/volume] in Serum or Plasma",
+    "short_name": "Thyroid Stimulating Hormone",
+    "unit": "uIU/mL",
+    "category": "Thyroid Profile"
+  },
+  "thyroid stimulating hormone": {
+    "loinc": "3016-3",
+    "name": "Thyrotropin [Units/volume] in Serum or Plasma",
+    "short_name": "Thyroid Stimulating Hormone",
+    "unit": "uIU/mL",
+    "category": "Thyroid Profile"
+  },
+  "free t3": {
+    "loinc": "3051-0",
+    "name": "Triiodothyronine Free [Mass/volume] in Serum or Plasma",
+    "short_name": "Free T3",
+    "unit": "pg/mL",
+    "category": "Thyroid Profile"
+  },
+  "free t4": {
+    "loinc": "3024-7",
+    "name": "Thyroxine Free [Mass/volume] in Serum or Plasma",
+    "short_name": "Free T4",
+    "unit": "ng/dL",
+    "category": "Thyroid Profile"
+  },
+  "total cholesterol": {
+    "loinc": "2093-3",
+    "name": "Cholesterol [Mass/volume] in Serum or Plasma",
+    "short_name": "Total Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "cholesterol": {
+    "loinc": "2093-3",
+    "name": "Cholesterol [Mass/volume] in Serum or Plasma",
+    "short_name": "Total Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "triglycerides": {
+    "loinc": "2571-8",
+    "name": "Triglyceride [Mass/volume] in Serum or Plasma",
+    "short_name": "Triglycerides",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "hdl": {
+    "loinc": "2085-9",
+    "name": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+    "short_name": "HDL Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "hdl cholesterol": {
+    "loinc": "2085-9",
+    "name": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+    "short_name": "HDL Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "ldl": {
+    "loinc": "13457-7",
+    "name": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+    "short_name": "LDL Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "ldl cholesterol": {
+    "loinc": "13457-7",
+    "name": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+    "short_name": "LDL Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "vldl": {
+    "loinc": "13458-5",
+    "name": "Cholesterol in VLDL [Mass/volume] in Serum or Plasma",
+    "short_name": "VLDL Cholesterol",
+    "unit": "mg/dL",
+    "category": "Lipid Profile"
+  },
+  "fasting blood glucose": {
+    "loinc": "1558-6",
+    "name": "Fasting Glucose [Mass/volume] in Serum or Plasma",
+    "short_name": "Fasting Glucose",
+    "unit": "mg/dL",
+    "category": "Diabetes"
+  },
+  "glucose": {
+    "loinc": "2345-7",
+    "name": "Glucose [Mass/volume] in Serum or Plasma",
+    "short_name": "Blood Glucose",
+    "unit": "mg/dL",
+    "category": "Diabetes"
+  },
+  "random blood sugar": {
+    "loinc": "2345-7",
+    "name": "Glucose [Mass/volume] in Serum or Plasma",
+    "short_name": "Blood Glucose",
+    "unit": "mg/dL",
+    "category": "Diabetes"
+  },
+  "hba1c": {
+    "loinc": "4548-4",
+    "name": "Hemoglobin A1c/Hemoglobin.total in Blood",
+    "short_name": "HbA1c Glycated Hemoglobin",
+    "unit": "%",
+    "category": "Diabetes"
+  },
+  "glycated hemoglobin": {
+    "loinc": "4548-4",
+    "name": "Hemoglobin A1c/Hemoglobin.total in Blood",
+    "short_name": "HbA1c Glycated Hemoglobin",
+    "unit": "%",
+    "category": "Diabetes"
+  },
+  "creatinine": {
+    "loinc": "2160-0",
+    "name": "Creatinine [Mass/volume] in Serum or Plasma",
+    "short_name": "Serum Creatinine",
+    "unit": "mg/dL",
+    "category": "Renal Function"
+  },
+  "serum creatinine": {
+    "loinc": "2160-0",
+    "name": "Creatinine [Mass/volume] in Serum or Plasma",
+    "short_name": "Serum Creatinine",
+    "unit": "mg/dL",
+    "category": "Renal Function"
+  },
+  "blood urea nitrogen": {
+    "loinc": "3094-0",
+    "name": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+    "short_name": "Blood Urea Nitrogen",
+    "unit": "mg/dL",
+    "category": "Renal Function"
+  },
+  "bun": {
+    "loinc": "3094-0",
+    "name": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+    "short_name": "Blood Urea Nitrogen",
+    "unit": "mg/dL",
+    "category": "Renal Function"
+  },
+  "uric acid": {
+    "loinc": "3084-1",
+    "name": "Urate [Mass/volume] in Serum or Plasma",
+    "short_name": "Serum Uric Acid",
+    "unit": "mg/dL",
+    "category": "Renal Function"
+  },
+  "egfr": {
+    "loinc": "33914-3",
+    "name": "Glomerular filtration rate/1.73 sq M.predicted",
+    "short_name": "Estimated GFR",
+    "unit": "mL/min/1.73m2",
+    "category": "Renal Function"
+  },
+  "sgot": {
+    "loinc": "1920-8",
+    "name": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "SGOT / AST",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "ast": {
+    "loinc": "1920-8",
+    "name": "Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "SGOT / AST",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "sgpt": {
+    "loinc": "1742-6",
+    "name": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "SGPT / ALT",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "alt": {
+    "loinc": "1742-6",
+    "name": "Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "SGPT / ALT",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "bilirubin total": {
+    "loinc": "1975-2",
+    "name": "Bilirubin.total [Mass/volume] in Serum or Plasma",
+    "short_name": "Total Bilirubin",
+    "unit": "mg/dL",
+    "category": "Liver Function"
+  },
+  "total bilirubin": {
+    "loinc": "1975-2",
+    "name": "Bilirubin.total [Mass/volume] in Serum or Plasma",
+    "short_name": "Total Bilirubin",
+    "unit": "mg/dL",
+    "category": "Liver Function"
+  },
+  "bilirubin direct": {
+    "loinc": "1968-7",
+    "name": "Bilirubin.conjugated [Mass/volume] in Serum or Plasma",
+    "short_name": "Direct Bilirubin",
+    "unit": "mg/dL",
+    "category": "Liver Function"
+  },
+  "alkaline phosphatase": {
+    "loinc": "6768-6",
+    "name": "Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "Alkaline Phosphatase (ALP)",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "alp": {
+    "loinc": "6768-6",
+    "name": "Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma",
+    "short_name": "Alkaline Phosphatase (ALP)",
+    "unit": "U/L",
+    "category": "Liver Function"
+  },
+  "serum albumin": {
+    "loinc": "1751-7",
+    "name": "Albumin [Mass/volume] in Serum or Plasma",
+    "short_name": "Serum Albumin",
+    "unit": "g/dL",
+    "category": "Liver Function"
+  },
+  "total protein": {
+    "loinc": "2885-2",
+    "name": "Protein [Mass/volume] in Serum or Plasma",
+    "short_name": "Total Protein",
+    "unit": "g/dL",
+    "category": "Liver Function"
+  },
+  "serum sodium": {
+    "loinc": "2951-2",
+    "name": "Sodium [Moles/volume] in Serum or Plasma",
+    "short_name": "Sodium",
+    "unit": "mmol/L",
+    "category": "Electrolytes"
+  },
+  "sodium": {
+    "loinc": "2951-2",
+    "name": "Sodium [Moles/volume] in Serum or Plasma",
+    "short_name": "Sodium",
+    "unit": "mmol/L",
+    "category": "Electrolytes"
+  },
+  "serum potassium": {
+    "loinc": "2823-3",
+    "name": "Potassium [Moles/volume] in Serum or Plasma",
+    "short_name": "Potassium",
+    "unit": "mmol/L",
+    "category": "Electrolytes"
+  },
+  "potassium": {
+    "loinc": "2823-3",
+    "name": "Potassium [Moles/volume] in Serum or Plasma",
+    "short_name": "Potassium",
+    "unit": "mmol/L",
+    "category": "Electrolytes"
+  },
+  "calcium": {
+    "loinc": "17861-6",
+    "name": "Calcium [Mass/volume] in Serum or Plasma",
+    "short_name": "Calcium",
+    "unit": "mg/dL",
+    "category": "Electrolytes"
+  },
+  "vitamin d": {
+    "loinc": "1653-3",
+    "name": "25-Hydroxyvitamin D3+25-Hydroxyvitamin D2 [Mass/volume] in Serum or Plasma",
+    "short_name": "25-OH Vitamin D",
+    "unit": "ng/mL",
+    "category": "Vitamins"
+  },
+  "vitamin b12": {
+    "loinc": "1988-5",
+    "name": "Cobalamin (Vitamin B12) [Mass/volume] in Serum or Plasma",
+    "short_name": "Vitamin B12",
+    "unit": "pg/mL",
+    "category": "Vitamins"
+  },
+  "serum ferritin": {
+    "loinc": "2276-4",
+    "name": "Ferritin [Mass/volume] in Serum or Plasma",
+    "short_name": "Ferritin",
+    "unit": "ng/mL",
+    "category": "Iron Studies"
+  },
+  "crp": {
+    "loinc": "1988-5",
+    "name": "C reactive protein [Mass/volume] in Serum or Plasma",
+    "short_name": "C-Reactive Protein (CRP)",
+    "unit": "mg/L",
+    "category": "Inflammation"
+  },
+  "esr": {
+    "loinc": "4537-7",
+    "name": "Erythrocyte sedimentation rate by Westergren method",
+    "short_name": "ESR Westergren",
+    "unit": "mm/hr",
+    "category": "Inflammation"
+  }
+}

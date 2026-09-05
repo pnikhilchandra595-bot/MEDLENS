@@ -1,0 +1,16 @@
+{
+  "name": "medlens",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MedLens - Clinical Laboratory Report Intelligence, Provenance, Temporal Tracking & Patient Communication Platform",
+  "scripts": {
+    "dev:backend": "cd backend && python main.py",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt",
+    "test:backend": "cd backend && python test_medlens.py"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
