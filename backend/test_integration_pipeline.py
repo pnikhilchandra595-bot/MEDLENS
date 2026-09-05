@@ -180,10 +180,17 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertIsNone(self.db.query(Patient).filter(Patient.id == temp_id).first())
 
     def test_08_multi_factor_search(self):
-        resp = self.client.get("/api/reports/search?query=TSH&is_abnormal=true")
+        resp = self.client.get("/api/reports/search?query=TSH&is_abnormal=true&limit=10&offset=0")
         self.assertEqual(resp.status_code, 200)
-        results = resp.json()
-        self.assertIsInstance(results, list)
+        data = resp.json()
+        self.assertIsInstance(data, dict)
+        self.assertIn("total_count", data)
+        self.assertIn("limit", data)
+        self.assertIn("offset", data)
+        self.assertIn("results", data)
+        self.assertEqual(data["limit"], 10)
+        self.assertEqual(data["offset"], 0)
+        self.assertIsInstance(data["results"], list)
 
     def test_09_parametrized_diagnostic_blocklist_generalization(self):
         adversarial_test_cases = [

@@ -10,7 +10,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from adversarial.interpreter import AdversarialInterpreter
 from consent.consent_manager import ConsentManager
@@ -161,30 +161,31 @@ def search_drug(
     return result
 
 
-@router.get("/api/reports/search", response_model=List[Dict[str, Any]])
+@router.get("/api/reports/search", response_model=Dict[str, Any])
 def search_reports(
     query: Optional[str] = Query(None, description="Biomarker or test name query"),
     is_abnormal: Optional[bool] = Query(None, description="Filter by abnormality status"),
     start_date: Optional[str] = Query(None, description="ISO start date filter"),
     end_date: Optional[str] = Query(None, description="ISO end date filter"),
-    limit: int = Query(50, ge=1, le=100, description="Max reports to return"),
+    limit: int = Query(20, ge=1, le=100, description="Max reports to return"),
     offset: int = Query(0, ge=0, description="Pagination offset"),
     db: Session = Depends(get_db),
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """
-    Multi-factor search across clinical laboratory reports and extracted biomarkers.
+    Multi-factor search across clinical laboratory reports and extracted biomarkers
+    with deterministic limit/offset pagination and total_count metadata.
 
     Args:
         query: Optional test name or canonical biomarker substring.
         is_abnormal: Optional boolean to filter only flagged abnormal tests.
         start_date: Optional lower date bound.
         end_date: Optional upper date bound.
-        limit: Max results count.
-        offset: Pagination offset.
+        limit: Max results count per page (default 20).
+        offset: Pagination offset (default 0).
         db: Active SQLAlchemy database session.
 
     Returns:
-        List[Dict[str, Any]]: List of matching report summary items with matched test counts.
+        Dict[str, Any]: Object containing total_count, limit, offset, and matching results list.
     """
     q = db.query(Report).join(Patient)
     if start_date:
@@ -192,9 +193,9 @@ def search_reports(
     if end_date:
         q = q.filter(Report.report_date <= end_date)
 
-    reports = q.order_by(Report.report_date.desc()).offset(offset).limit(limit).all()
-    results = []
-    for r in reports:
+    all_reports = q.order_by(Report.report_date.desc()).all()
+    matched_results = []
+    for r in all_reports:
         matching_tests = r.test_results
         if query:
             matching_tests = [
@@ -207,7 +208,7 @@ def search_reports(
             matching_tests = [t for t in matching_tests if t.is_abnormal == is_abnormal]
 
         if matching_tests or not query:
-            results.append(
+            matched_results.append(
                 {
                     "report_id": r.id,
                     "patient_name": r.patient.name if r.patient else "Unknown",
@@ -217,7 +218,16 @@ def search_reports(
                     "total_flagged": sum(1 for t in r.test_results if t.is_abnormal),
                 }
             )
-    return results
+
+    total_count = len(matched_results)
+    paginated = matched_results[offset : offset + limit]
+
+    return {
+        "total_count": total_count,
+        "limit": limit,
+        "offset": offset,
+        "results": paginated,
+    }
 
 
 @router.get("/api/reports/{report_id}", response_model=Dict[str, Any])

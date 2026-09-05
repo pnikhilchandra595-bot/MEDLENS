@@ -57,7 +57,7 @@ describe('Frontend Accessibility & Keyboard Navigation Suite', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('BiomarkerTable rows are keyboard focusable and selectable with Enter key', () => {
+  it('BiomarkerTable rows trigger selection on both Enter and Space keys', () => {
     const handleSelect = vi.fn();
     render(
       <BiomarkerTable
@@ -66,7 +66,7 @@ describe('Frontend Accessibility & Keyboard Navigation Suite', () => {
         setSearchQuery={() => {}}
         onlyAbnormalFilter={false}
         setOnlyAbnormalFilter={() => {}}
-        selectedResultId="res-test-01"
+        selectedResultId=""
         onSelectResult={handleSelect}
         onStartCorrection={() => {}}
       />
@@ -76,11 +76,16 @@ describe('Frontend Accessibility & Keyboard Navigation Suite', () => {
     expect(row).toBeInTheDocument();
     expect(row).toHaveAttribute('tabIndex', '0');
 
+    // 1. Test Enter key press
     fireEvent.keyDown(row, { key: 'Enter', code: 'Enter' });
     expect(handleSelect).toHaveBeenCalledWith('res-test-01');
+
+    // 2. Test Space key press
+    fireEvent.keyDown(row, { key: ' ', code: 'Space' });
+    expect(handleSelect).toHaveBeenCalledTimes(2);
   });
 
-  it('SmartAnalyteCard exposes accessible buttons and focus rings', () => {
+  it('SmartAnalyteCard triggers selection when activated with Enter or Space keys', () => {
     const handleSelect = vi.fn();
     render(
       <SmartAnalyteCard
@@ -90,15 +95,41 @@ describe('Frontend Accessibility & Keyboard Navigation Suite', () => {
       />
     );
 
-    const testButton = screen.getByRole('button', { name: /TSH/i });
-    expect(testButton).toBeInTheDocument();
+    const cardRegion = screen.getByRole('region', { name: /Biomarker card for TSH/i });
+    expect(cardRegion).toBeInTheDocument();
+    expect(cardRegion).toHaveAttribute('tabIndex', '0');
 
-    const compareBtn = screen.getByRole('button', { name: /Compare Readings/i });
-    expect(compareBtn).toBeInTheDocument();
-    expect(compareBtn).toHaveAttribute('aria-expanded', 'false');
+    // KeyDown Enter
+    fireEvent.keyDown(cardRegion, { key: 'Enter', code: 'Enter' });
+    expect(handleSelect).toHaveBeenCalledWith('res-test-01');
 
-    fireEvent.click(compareBtn);
-    expect(compareBtn).toHaveAttribute('aria-expanded', 'true');
+    // KeyDown Space
+    fireEvent.keyDown(cardRegion, { key: ' ', code: 'Space' });
+    expect(handleSelect).toHaveBeenCalledTimes(2);
+  });
+
+  it('ReportViewer SVG grounded bounding box overlays are keyboard focusable and selectable', () => {
+    const handleSelect = vi.fn();
+    render(
+      <ReportViewer
+        fileUrl="/samples/sample_report_1.png"
+        results={[mockResult]}
+        selectedResultId="res-test-01"
+        onSelectResult={handleSelect}
+        patientName="P Vijay Kumar"
+      />
+    );
+
+    const svgOverlay = screen.getByRole('button', { name: /Grounded Bounding Box for Thyroid Stimulating Hormone/i });
+    expect(svgOverlay).toBeInTheDocument();
+
+    // Simulate Enter on SVG bounding box
+    fireEvent.keyDown(svgOverlay, { key: 'Enter', code: 'Enter' });
+    expect(handleSelect).toHaveBeenCalledWith('res-test-01');
+
+    // Simulate Space on SVG bounding box
+    fireEvent.keyDown(svgOverlay, { key: ' ', code: 'Space' });
+    expect(handleSelect).toHaveBeenCalledTimes(2);
   });
 
   it('Surfaces audit history and allows expanding the verification audit drawer', () => {
