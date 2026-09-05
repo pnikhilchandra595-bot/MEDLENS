@@ -1,14 +1,38 @@
 import os
 from datetime import datetime, timezone
+
+# Load .env file if present
+env_paths = [
+    os.path.join(os.path.dirname(__file__), ".env"),
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+]
+for ep in env_paths:
+    if os.path.exists(ep):
+        with open(ep, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    if k.strip() not in os.environ:
+                        os.environ[k.strip()] = v.strip()
 from sqlalchemy import (
     create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, text as db_text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-DB_PATH = os.environ.get("MEDLENS_DB_PATH", os.path.join(os.path.dirname(__file__), "medlens.db"))
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    DB_PATH = os.environ.get("MEDLENS_DB_PATH", os.path.join(os.path.dirname(__file__), "medlens.db"))
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=10, max_overflow=20)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
