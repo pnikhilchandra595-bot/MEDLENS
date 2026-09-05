@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
 
 class FhirBundleBuilder:
     """
@@ -13,7 +14,7 @@ class FhirBundleBuilder:
         patient_data: Dict[str, Any],
         report_data: Dict[str, Any],
         test_results: List[Dict[str, Any]],
-        is_abdm_profile: bool = False
+        is_abdm_profile: bool = False,
     ) -> Dict[str, Any]:
         bundle_id = str(uuid.uuid4())
         patient_id = patient_data.get("id") or f"pat-{uuid.uuid4().hex[:8]}"
@@ -23,8 +24,12 @@ class FhirBundleBuilder:
         entries = []
 
         # 1. FHIR Patient Resource (ABDM / NRCeS Compatible)
-        patient_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Patient" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Patient"
-        
+        patient_profile = (
+            "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Patient"
+            if is_abdm_profile
+            else "http://hl7.org/fhir/StructureDefinition/Patient"
+        )
+
         patient_resource: Dict[str, Any] = {
             "fullUrl": f"urn:uuid:{patient_id}",
             "resource": {
@@ -33,7 +38,7 @@ class FhirBundleBuilder:
                 "meta": {
                     "profile": [patient_profile],
                     "versionId": "1",
-                    "lastUpdated": datetime.now(timezone.utc).isoformat()
+                    "lastUpdated": datetime.now(timezone.utc).isoformat(),
                 },
                 "identifier": [
                     {
@@ -42,35 +47,32 @@ class FhirBundleBuilder:
                                 {
                                     "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
                                     "code": "MR",
-                                    "display": "Medical Record Number"
+                                    "display": "Medical Record Number",
                                 }
                             ]
                         },
-                        "system": "https://healthid.ndhm.gov.in" if is_abdm_profile else "http://medlens.health/patients",
-                        "value": patient_data.get("abha_id") or f"91-4567-8901-{patient_id[:4]}"
+                        "system": "https://healthid.ndhm.gov.in"
+                        if is_abdm_profile
+                        else "http://medlens.health/patients",
+                        "value": patient_data.get("abha_id") or f"91-4567-8901-{patient_id[:4]}",
                     }
                 ],
-                "name": [
-                    {
-                        "use": "official",
-                        "text": patient_data.get("name", "Arjun Sharma")
-                    }
-                ],
-                "gender": (patient_data.get("sex") or "male").lower()
-            }
+                "name": [{"use": "official", "text": patient_data.get("name", "Arjun Sharma")}],
+                "gender": (patient_data.get("sex") or "male").lower(),
+            },
         }
         if patient_data.get("phone"):
             patient_resource["resource"]["telecom"] = [
-                {
-                    "system": "phone",
-                    "value": patient_data.get("phone"),
-                    "use": "mobile"
-                }
+                {"system": "phone", "value": patient_data.get("phone"), "use": "mobile"}
             ]
         entries.append(patient_resource)
 
         # 2. FHIR Observation Resources
-        obs_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Observation" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Observation"
+        obs_profile = (
+            "https://nrces.in/ndhm/fhir/r4/StructureDefinition/Observation"
+            if is_abdm_profile
+            else "http://hl7.org/fhir/StructureDefinition/Observation"
+        )
         observation_references = []
 
         for i, res in enumerate(test_results):
@@ -84,9 +86,7 @@ class FhirBundleBuilder:
             obs_resource: Dict[str, Any] = {
                 "resourceType": "Observation",
                 "id": obs_id,
-                "meta": {
-                    "profile": [obs_profile]
-                },
+                "meta": {"profile": [obs_profile]},
                 "status": "final",
                 "category": [
                     {
@@ -94,26 +94,17 @@ class FhirBundleBuilder:
                             {
                                 "system": "http://terminology.hl7.org/CodeSystem/observation-category",
                                 "code": "laboratory",
-                                "display": "Laboratory"
+                                "display": "Laboratory",
                             }
                         ]
                     }
                 ],
                 "code": {
-                    "coding": [
-                        {
-                            "system": "http://loinc.org",
-                            "code": loinc_code,
-                            "display": canonical_name
-                        }
-                    ],
-                    "text": canonical_name
+                    "coding": [{"system": "http://loinc.org", "code": loinc_code, "display": canonical_name}],
+                    "text": canonical_name,
                 },
-                "subject": {
-                    "reference": f"urn:uuid:{patient_id}",
-                    "display": patient_data.get("name", "Patient")
-                },
-                "effectiveDateTime": f"{report_date}T09:00:00Z"
+                "subject": {"reference": f"urn:uuid:{patient_id}", "display": patient_data.get("name", "Patient")},
+                "effectiveDateTime": f"{report_date}T09:00:00Z",
             }
 
             # Value Quantity
@@ -122,7 +113,7 @@ class FhirBundleBuilder:
                     "value": float(val),
                     "unit": unit,
                     "system": "http://unitsofmeasure.org",
-                    "code": unit
+                    "code": unit,
                 }
 
             # Reference Range
@@ -143,7 +134,7 @@ class FhirBundleBuilder:
                         {
                             "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
                             "code": "A" if is_abnormal else "N",
-                            "display": "Abnormal" if is_abnormal else "Normal"
+                            "display": "Abnormal" if is_abnormal else "Normal",
                         }
                     ]
                 }
@@ -153,34 +144,30 @@ class FhirBundleBuilder:
             obs_resource["extension"] = [
                 {
                     "url": "http://medlens.health/fhir/StructureDefinition/provenance-source",
-                    "valueString": res.get("source", "Extracted from report")
+                    "valueString": res.get("source", "Extracted from report"),
                 },
                 {
                     "url": "http://medlens.health/fhir/StructureDefinition/confidence-tier",
-                    "valueString": res.get("confidence_tier", "high")
-                }
+                    "valueString": res.get("confidence_tier", "high"),
+                },
             ]
 
-            entries.append({
-                "fullUrl": f"urn:uuid:{obs_id}",
-                "resource": obs_resource
-            })
-            observation_references.append({
-                "reference": f"urn:uuid:{obs_id}",
-                "display": canonical_name
-            })
+            entries.append({"fullUrl": f"urn:uuid:{obs_id}", "resource": obs_resource})
+            observation_references.append({"reference": f"urn:uuid:{obs_id}", "display": canonical_name})
 
         # 3. FHIR DiagnosticReport Resource
-        diag_profile = "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DiagnosticReportLab" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/DiagnosticReport"
+        diag_profile = (
+            "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DiagnosticReportLab"
+            if is_abdm_profile
+            else "http://hl7.org/fhir/StructureDefinition/DiagnosticReport"
+        )
 
         diagnostic_report = {
             "fullUrl": f"urn:uuid:{report_id}",
             "resource": {
                 "resourceType": "DiagnosticReport",
                 "id": report_id,
-                "meta": {
-                    "profile": [diag_profile]
-                },
+                "meta": {"profile": [diag_profile]},
                 "status": "final",
                 "category": [
                     {
@@ -188,34 +175,21 @@ class FhirBundleBuilder:
                             {
                                 "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
                                 "code": "LAB",
-                                "display": "Laboratory"
+                                "display": "Laboratory",
                             }
                         ]
                     }
                 ],
                 "code": {
-                    "coding": [
-                        {
-                            "system": "http://loinc.org",
-                            "code": "11502-2",
-                            "display": "Laboratory report"
-                        }
-                    ],
-                    "text": report_data.get("lab_name", "Diagnostic Laboratory Report")
+                    "coding": [{"system": "http://loinc.org", "code": "11502-2", "display": "Laboratory report"}],
+                    "text": report_data.get("lab_name", "Diagnostic Laboratory Report"),
                 },
-                "subject": {
-                    "reference": f"urn:uuid:{patient_id}",
-                    "display": patient_data.get("name", "Patient")
-                },
+                "subject": {"reference": f"urn:uuid:{patient_id}", "display": patient_data.get("name", "Patient")},
                 "effectiveDateTime": f"{report_date}T09:00:00Z",
                 "issued": datetime.now(timezone.utc).isoformat(),
-                "performer": [
-                    {
-                        "display": report_data.get("lab_name", "Metropolis Diagnostic Lab")
-                    }
-                ],
-                "result": observation_references
-            }
+                "performer": [{"display": report_data.get("lab_name", "Metropolis Diagnostic Lab")}],
+                "result": observation_references,
+            },
         }
         entries.append(diagnostic_report)
 
@@ -224,10 +198,12 @@ class FhirBundleBuilder:
             "id": bundle_id,
             "meta": {
                 "profile": [
-                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle" if is_abdm_profile else "http://hl7.org/fhir/StructureDefinition/Bundle"
+                    "https://nrces.in/ndhm/fhir/r4/StructureDefinition/DocumentBundle"
+                    if is_abdm_profile
+                    else "http://hl7.org/fhir/StructureDefinition/Bundle"
                 ],
-                "lastUpdated": datetime.now(timezone.utc).isoformat()
+                "lastUpdated": datetime.now(timezone.utc).isoformat(),
             },
             "type": "collection",
-            "entry": entries
+            "entry": entries,
         }

@@ -1,5 +1,9 @@
+import logging
 import os
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
+logger = logging.getLogger(__name__)
+
 
 class WhatsAppService:
     """
@@ -22,10 +26,10 @@ class WhatsAppService:
         flag_count: int,
         flagged_tests: List[str],
         doctor_questions: List[str],
-        language: str = "en"
+        language: str = "en",
     ) -> str:
         flagged_str = "\n".join([f"• {t}" for t in flagged_tests]) if flagged_tests else "• None"
-        questions_str = "\n".join([f"{i+1}. {q}" for i, q in enumerate(doctor_questions[:3])])
+        questions_str = "\n".join([f"{i + 1}. {q}" for i, q in enumerate(doctor_questions[:3])])
 
         if language == "hi":
             return f"""📋 *मेडिकल लैब रिपोर्ट विश्लेषण पूर्ण*
@@ -69,47 +73,46 @@ Access your full structured report and temporal trends at MedLens Portal."""
         flag_count: int,
         flagged_tests: List[str],
         doctor_questions: List[str],
-        language: str = "en"
+        language: str = "en",
     ) -> Dict[str, Any]:
         message_body = self.build_patient_message(
             patient_name=patient_name,
             flag_count=flag_count,
             flagged_tests=flagged_tests,
             doctor_questions=doctor_questions,
-            language=language
+            language=language,
         )
 
-        formatted_phone = phone_number if phone_number.startswith("+") else f"+91{phone_number.replace('-', '').replace(' ', '')}"
-        
+        formatted_phone = (
+            phone_number if phone_number.startswith("+") else f"+91{phone_number.replace('-', '').replace(' ', '')}"
+        )
+
         # If Twilio credentials present, attempt live dispatch
         if (self.account_sid and self.auth_token) or (self.api_key and self.api_secret):
             try:
                 from twilio.rest import Client
+
                 user = self.api_key or self.account_sid
                 password = self.api_secret or self.auth_token
                 client = Client(user, password, self.account_sid)
-                
+
                 # Attempt sending with content_sid if configured, or direct body
                 try:
                     if self.content_sid:
                         msg = client.messages.create(
-                            from_=self.from_number,
-                            to=f"whatsapp:{formatted_phone}",
-                            content_sid=self.content_sid
+                            from_=self.from_number, to=f"whatsapp:{formatted_phone}", content_sid=self.content_sid
                         )
                     else:
                         msg = client.messages.create(
-                            from_=self.from_number,
-                            to=f"whatsapp:{formatted_phone}",
-                            body=message_body
+                            from_=self.from_number, to=f"whatsapp:{formatted_phone}", body=message_body
                         )
                 except Exception as template_err:
                     # Fallback to direct body if template failed
-                    print(f"[WhatsAppService] Primary send failed ({template_err}), attempting direct body dispatch...")
+                    logger.info(
+                        "[WhatsAppService] Primary send failed (%s), attempting direct body dispatch...", template_err
+                    )
                     msg = client.messages.create(
-                        from_=self.from_number,
-                        to=f"whatsapp:{formatted_phone}",
-                        body=message_body
+                        from_=self.from_number, to=f"whatsapp:{formatted_phone}", body=message_body
                     )
 
                 return {
@@ -117,10 +120,10 @@ Access your full structured report and temporal trends at MedLens Portal."""
                     "provider": "twilio",
                     "sid": msg.sid,
                     "recipient": formatted_phone,
-                    "body": message_body
+                    "body": message_body,
                 }
             except Exception as e:
-                print(f"[WhatsAppService] Twilio live dispatch failed: {e}")
+                logger.warning("[WhatsAppService] Twilio live dispatch failed: %s", e)
 
         # Simulated dispatch for local testing & live stage demos
         return {
@@ -128,6 +131,5 @@ Access your full structured report and temporal trends at MedLens Portal."""
             "provider": "medlens_simulator",
             "recipient": formatted_phone,
             "body": message_body,
-            "message": "Message successfully prepared and queued for delivery."
+            "message": "Message successfully prepared and queued for delivery.",
         }
-

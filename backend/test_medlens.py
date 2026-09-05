@@ -5,20 +5,26 @@ import unittest
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.dirname(__file__))
 
-from database import init_db, SessionLocal, Patient, Report, TestResult, PatientReportedData, Consent, ReportHash
-from extractors.vision_extractor import calculate_sha256, check_patient_match, ground_bbox, normalize_numeric_string, VisionExtractionEngine
-from normalizers.loinc_normalizer import LoincNormalizer
-from normalizers.sanity_checker import BiologicalSanityChecker
-from normalizers.rxnorm_service import RxNormService
-from intake.provenance import detect_inconsistencies
-from trends.temporal_engine import TemporalIntelligenceEngine
-from adversarial.interpreter import AdversarialInterpreter, validate_and_sanitize_output, DIAGNOSTIC_BLOCKLIST
-from fhir.fhir_builder import FhirBundleBuilder
+from adversarial.interpreter import DIAGNOSTIC_BLOCKLIST, AdversarialInterpreter, validate_and_sanitize_output
 from consent.consent_manager import ConsentManager
+from database import Patient, SessionLocal, init_db
+from extractors.vision_extractor import (
+    VisionExtractionEngine,
+    calculate_sha256,
+    check_patient_match,
+    ground_bbox,
+    normalize_numeric_string,
+)
+from fhir.fhir_builder import FhirBundleBuilder
+from intake.provenance import detect_inconsistencies
+from normalizers.loinc_normalizer import LoincNormalizer
+from normalizers.rxnorm_service import RxNormService
+from normalizers.sanity_checker import BiologicalSanityChecker
 from samples.sample_data import seed_sample_database
+from trends.temporal_engine import TemporalIntelligenceEngine
+
 
 class TestMedLensPlatform(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         os.environ["MEDLENS_DB_PATH"] = os.path.join(os.path.dirname(__file__), "test_medlens.db")
@@ -53,7 +59,7 @@ class TestMedLensPlatform(unittest.TestCase):
 
     def test_03_loinc_normalization(self):
         norm = LoincNormalizer()
-        
+
         # Local exact/canonical
         r1 = norm.normalize("TSH")
         self.assertEqual(r1["loinc_code"], "3016-3")
@@ -70,7 +76,7 @@ class TestMedLensPlatform(unittest.TestCase):
 
     def test_04_rxnorm_drug_normalization(self):
         rx = RxNormService()
-        
+
         # Indian commercial brand -> Canonical RxNorm active ingredient
         r1 = rx.normalize_drug("Crocin 500mg")
         self.assertTrue(r1["is_recognized"])
@@ -110,14 +116,19 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertEqual(res_low["confidence_tier"], "low")
 
         # Missing reference range -> safely evaluated without fabricating
-        res_missing = checker.validate_result(loinc_code="4548-4", value=6.9, ref_low=None, ref_high=None, is_abnormal_extracted=True)
+        res_missing = checker.validate_result(
+            loinc_code="4548-4", value=6.9, ref_low=None, ref_high=None, is_abnormal_extracted=True
+        )
         self.assertEqual(res_missing["confidence_tier"], "medium")
         self.assertEqual(res_missing["sanity_status"], "missing_reference_range")
 
     def test_06_grounded_bbox(self):
         ocr_lines = [
             {"text": "Patient Name: Arjun Sharma", "bbox": {"x": 0.1, "y": 0.1, "w": 0.8, "h": 0.05}},
-            {"text": "TSH (Thyroid Stimulating Hormone)  6.80 uIU/mL (0.40 - 4.50)", "bbox": {"x": 0.1, "y": 0.28, "w": 0.8, "h": 0.04}}
+            {
+                "text": "TSH (Thyroid Stimulating Hormone)  6.80 uIU/mL (0.40 - 4.50)",
+                "bbox": {"x": 0.1, "y": 0.28, "w": 0.8, "h": 0.04},
+            },
         ]
         # Test numeric normalization ("6.8" matches "6.80")
         bbox, grounded, gtype = ground_bbox("6.8", "TSH", ocr_lines)
@@ -133,12 +144,12 @@ class TestMedLensPlatform(unittest.TestCase):
     def test_07_inconsistency_detection_with_rxnorm(self):
         patient_reported = {
             "conditions": "No diabetes, mild fatigue",
-            "medications": "Thyronorm 50mcg, Combiflam daily"
+            "medications": "Thyronorm 50mcg, Combiflam daily",
         }
         extracted_results = [
             {"loinc_code": "2345-7", "test_name": "Blood Glucose", "value": 180.0, "is_abnormal": True},
             {"loinc_code": "3016-3", "test_name": "TSH", "value": 6.8, "is_abnormal": True},
-            {"loinc_code": "2160-0", "test_name": "Serum Creatinine", "value": 1.9, "is_abnormal": True}
+            {"loinc_code": "2160-0", "test_name": "Serum Creatinine", "value": 1.9, "is_abnormal": True},
         ]
         flags = detect_inconsistencies(patient_reported, extracted_results)
         self.assertGreaterEqual(len(flags), 3)
@@ -152,17 +163,45 @@ class TestMedLensPlatform(unittest.TestCase):
             {
                 "report_date": "2025-09-10",
                 "results": [
-                    {"loinc_code": "3016-3", "canonical_name": "TSH", "value": 3.2, "ref_low": 0.4, "ref_high": 4.5, "is_abnormal": False},
-                    {"loinc_code": "2093-3", "canonical_name": "Total Cholesterol", "value": 190.0, "ref_low": 125.0, "ref_high": 200.0, "is_abnormal": False}
-                ]
+                    {
+                        "loinc_code": "3016-3",
+                        "canonical_name": "TSH",
+                        "value": 3.2,
+                        "ref_low": 0.4,
+                        "ref_high": 4.5,
+                        "is_abnormal": False,
+                    },
+                    {
+                        "loinc_code": "2093-3",
+                        "canonical_name": "Total Cholesterol",
+                        "value": 190.0,
+                        "ref_low": 125.0,
+                        "ref_high": 200.0,
+                        "is_abnormal": False,
+                    },
+                ],
             },
             {
                 "report_date": "2026-03-01",
                 "results": [
-                    {"loinc_code": "3016-3", "canonical_name": "TSH", "value": 6.8, "ref_low": 0.4, "ref_high": 4.5, "is_abnormal": True},
-                    {"loinc_code": "2093-3", "canonical_name": "Total Cholesterol", "value": 242.0, "ref_low": 125.0, "ref_high": 200.0, "is_abnormal": True}
-                ]
-            }
+                    {
+                        "loinc_code": "3016-3",
+                        "canonical_name": "TSH",
+                        "value": 6.8,
+                        "ref_low": 0.4,
+                        "ref_high": 4.5,
+                        "is_abnormal": True,
+                    },
+                    {
+                        "loinc_code": "2093-3",
+                        "canonical_name": "Total Cholesterol",
+                        "value": 242.0,
+                        "ref_low": 125.0,
+                        "ref_high": 200.0,
+                        "is_abnormal": True,
+                    },
+                ],
+            },
         ]
         res = temporal.analyze_patient_timeline(reports)
         self.assertIn("3016-3", res["analyte_trends"])
@@ -175,10 +214,10 @@ class TestMedLensPlatform(unittest.TestCase):
         interpreter = AdversarialInterpreter()
         results = [
             {"canonical_name": "TSH", "value": 6.8, "is_abnormal": True},
-            {"canonical_name": "Total Cholesterol", "value": 242.0, "is_abnormal": True}
+            {"canonical_name": "Total Cholesterol", "value": 242.0, "is_abnormal": True},
         ]
         intel = interpreter.generate_clinical_intelligence(results, language="en")
-        
+
         self.assertEqual(intel["flag_count"], 2)
         summary = intel["primary_summary"].lower()
         for term in DIAGNOSTIC_BLOCKLIST:
@@ -190,9 +229,20 @@ class TestMedLensPlatform(unittest.TestCase):
         patient = {"id": "pat-test", "name": "Arjun Sharma", "sex": "Male", "phone": "+919876543210"}
         report = {"id": "rep-test", "lab_name": "Metropolis Lab", "report_date": "2026-03-01"}
         results = [
-            {"test_name": "TSH", "canonical_name": "Thyroid Stimulating Hormone", "loinc_code": "3016-3", "value": 6.8, "unit": "uIU/mL", "ref_low": 0.4, "ref_high": 4.5, "is_abnormal": True, "confidence_tier": "medium", "source": "Extracted from report"}
+            {
+                "test_name": "TSH",
+                "canonical_name": "Thyroid Stimulating Hormone",
+                "loinc_code": "3016-3",
+                "value": 6.8,
+                "unit": "uIU/mL",
+                "ref_low": 0.4,
+                "ref_high": 4.5,
+                "is_abnormal": True,
+                "confidence_tier": "medium",
+                "source": "Extracted from report",
+            }
         ]
-        
+
         # International Bundle
         intl_bundle = FhirBundleBuilder.build_fhir_bundle(patient, report, results, is_abdm_profile=False)
         self.assertEqual(intl_bundle["resourceType"], "Bundle")
@@ -206,6 +256,7 @@ class TestMedLensPlatform(unittest.TestCase):
 
     def test_11_dpdp_consent_and_delete(self):
         import uuid
+
         temp_id = f"pat-temp-{uuid.uuid4().hex[:8]}"
         p = Patient(id=temp_id, name="Temporary Delete Patient")
         self.db.add(p)
@@ -235,7 +286,7 @@ class TestMedLensPlatform(unittest.TestCase):
             "The test values suggest metabolic syndrome and insulin resistance.",
             "Patient is diagnosed with polycystic ovary syndrome (PCOS).",
             "Symptoms indicate a case of severe rheumatoid arthritis.",
-            "Patient suffers from chronic renal failure and needs dialysis."
+            "Patient suffers from chronic renal failure and needs dialysis.",
         ]
         for unsafe in unsafe_samples:
             is_safe, violation = validate_and_sanitize_output(unsafe)
@@ -247,11 +298,13 @@ class TestMedLensPlatform(unittest.TestCase):
             "On your report, TSH and Total Cholesterol are outside standard laboratory reference intervals.",
             "All recorded laboratory test values on this report are currently within their standard reference intervals.",
             "Across recorded dates, numerical shifts were observed in Fasting Glucose and Serum Creatinine for doctor consultation.",
-            "TSH value of 6.8 uIU/mL is higher than the laboratory reference upper bound of 4.5 uIU/mL."
+            "TSH value of 6.8 uIU/mL is higher than the laboratory reference upper bound of 4.5 uIU/mL.",
         ]
         for safe in safe_samples:
             is_safe, violation = validate_and_sanitize_output(safe)
-            self.assertTrue(is_safe, f"Improperly rejected safe non-diagnostic statement: '{safe}'. Reason: {violation}")
+            self.assertTrue(
+                is_safe, f"Improperly rejected safe non-diagnostic statement: '{safe}'. Reason: {violation}"
+            )
             self.assertIsNone(violation)
 
     def test_13_numeric_string_normalization(self):
@@ -263,14 +316,13 @@ class TestMedLensPlatform(unittest.TestCase):
     def test_14_extraction_engine_mode_flag(self):
         engine = VisionExtractionEngine()
         res = engine.process_document(
-            file_bytes=b"Sample PDF bytes content",
-            file_name="sample_report.pdf",
-            active_patient_name="Test Patient"
+            file_bytes=b"Sample PDF bytes content", file_name="sample_report.pdf", active_patient_name="Test Patient"
         )
         self.assertIn("extraction_mode", res)
         self.assertIn(res["extraction_mode"], ["gemini_live", "demo_fallback"])
         self.assertIn("sha256_hash", res)
         self.assertEqual(len(res["sha256_hash"]), 64)
+
 
 if __name__ == "__main__":
     unittest.main()

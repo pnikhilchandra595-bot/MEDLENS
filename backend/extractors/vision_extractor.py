@@ -1,38 +1,47 @@
-import os
+import hashlib
 import io
 import json
-import hashlib
-import re
-from typing import List, Dict, Any, Optional, Tuple
+import logging
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 try:
     from rapidfuzz import fuzz
 except ImportError:
     from difflib import SequenceMatcher
+
     class FuzzFallback:
         @staticmethod
         def ratio(a, b):
             return SequenceMatcher(None, str(a).lower(), str(b).lower()).ratio() * 100.0
+
         @staticmethod
         def partial_ratio(a, b):
             s_a, s_b = str(a).lower(), str(b).lower()
             if s_a in s_b:
                 return 100.0
             return SequenceMatcher(None, s_a, s_b).ratio() * 100.0
+
         @staticmethod
         def token_set_ratio(a, b):
             return SequenceMatcher(None, str(a).lower(), str(b).lower()).ratio() * 100.0
+
     fuzz = FuzzFallback()
+
 
 def calculate_sha256(file_bytes: bytes) -> str:
     """Computes SHA-256 tamper-evident cryptographic hash of raw file bytes."""
     return hashlib.sha256(file_bytes).hexdigest()
+
 
 def fuzzy_similarity(a: str, b: str) -> float:
     """Returns fuzzy string similarity ratio between 0.0 and 100.0."""
     if not a or not b:
         return 0.0
     return float(fuzz.ratio(str(a).lower().strip(), str(b).lower().strip()))
+
 
 def check_patient_match(extracted_name: str, active_profile_name: str) -> Dict[str, Any]:
     """
@@ -45,9 +54,9 @@ def check_patient_match(extracted_name: str, active_profile_name: str) -> Dict[s
             "similarity": 0.0,
             "extracted_name": extracted_name or "Unknown",
             "active_name": active_profile_name or "Unknown",
-            "message": "Report patient name could not be automatically verified against active profile."
+            "message": "Report patient name could not be automatically verified against active profile.",
         }
-    
+
     similarity = fuzzy_similarity(extracted_name, active_profile_name)
     if similarity < 70.0:
         return {
@@ -55,16 +64,17 @@ def check_patient_match(extracted_name: str, active_profile_name: str) -> Dict[s
             "similarity": round(similarity, 1),
             "extracted_name": extracted_name,
             "active_name": active_profile_name,
-            "message": f"Report name '{extracted_name}' does not match active profile '{active_profile_name}' ({round(similarity)}% match). Please confirm before saving."
+            "message": f"Report name '{extracted_name}' does not match active profile '{active_profile_name}' ({round(similarity)}% match). Please confirm before saving.",
         }
-    
+
     return {
         "status": "match",
         "similarity": round(similarity, 1),
         "extracted_name": extracted_name,
         "active_name": active_profile_name,
-        "message": "Patient name verified."
+        "message": "Patient name verified.",
     }
+
 
 def normalize_numeric_string(s: str) -> str:
     """
@@ -80,9 +90,10 @@ def normalize_numeric_string(s: str) -> str:
         # Format as integer if whole number, else standard float with stripped trailing zeros
         if val.is_integer():
             return str(int(val))
-        return f"{val:.4f}".rstrip('0').rstrip('.')
+        return f"{val:.4f}".rstrip("0").rstrip(".")
     except ValueError:
         return clean
+
 
 def extract_independent_pdf_lines(file_bytes: bytes) -> List[Dict[str, Any]]:
     """
@@ -92,27 +103,29 @@ def extract_independent_pdf_lines(file_bytes: bytes) -> List[Dict[str, Any]]:
     ocr_lines = []
     try:
         import pypdf
+
         reader = pypdf.PdfReader(io.BytesIO(file_bytes))
         for page_idx, page in enumerate(reader.pages):
             text = page.extract_text() or ""
-            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            lines = [line_text.strip() for line_text in text.split("\n") if line_text.strip()]
             total = max(len(lines), 1)
             for i, line in enumerate(lines):
                 # Approximate normalized bounding box based on line sequence
                 y_pos = 0.15 + (0.75 * (i / total))
-                ocr_lines.append({
-                    "text": line,
-                    "bbox": {"x": 0.08, "y": round(y_pos, 3), "w": 0.84, "h": 0.035},
-                    "source": "independent_pdf_text_layer"
-                })
+                ocr_lines.append(
+                    {
+                        "text": line,
+                        "bbox": {"x": 0.08, "y": round(y_pos, 3), "w": 0.84, "h": 0.035},
+                        "source": "independent_pdf_text_layer",
+                    }
+                )
     except Exception:
         pass
     return ocr_lines
 
+
 def ground_bbox(
-    extracted_val_str: str,
-    test_name_str: str,
-    ocr_lines: List[Dict[str, Any]]
+    extracted_val_str: str, test_name_str: str, ocr_lines: List[Dict[str, Any]]
 ) -> Tuple[Optional[Dict[str, float]], bool, str]:
     """
     Patch A — Real bounding box grounding with numeric normalization.
@@ -168,6 +181,7 @@ def optimize_image_for_vision(file_bytes: bytes, max_dim: int = 2048) -> Tuple[b
     """
     try:
         from PIL import Image
+
         img = Image.open(io.BytesIO(file_bytes))
         width, height = img.size
         if width > max_dim or height > max_dim:
@@ -182,6 +196,7 @@ def optimize_image_for_vision(file_bytes: bytes, max_dim: int = 2048) -> Tuple[b
     except Exception:
         return file_bytes, "image/jpeg"
 
+
 class VisionExtractionEngine:
     """
     Core Vision & Document Ingestion Engine.
@@ -193,10 +208,7 @@ class VisionExtractionEngine:
         self.api_key = os.environ.get("GEMINI_API_KEY", "")
 
     def process_document(
-        self,
-        file_bytes: bytes,
-        file_name: str,
-        active_patient_name: Optional[str] = None
+        self, file_bytes: bytes, file_name: str, active_patient_name: Optional[str] = None
     ) -> Dict[str, Any]:
         sha256_hash = calculate_sha256(file_bytes)
 
@@ -211,7 +223,7 @@ class VisionExtractionEngine:
                 if extracted_data and extracted_data.get("results"):
                     extraction_mode = "gemini_live"
             except Exception as e:
-                print(f"[VisionEngine] Gemini API call failed, falling back to local extractor: {e}")
+                logger.warning("[VisionEngine] Gemini API call failed, falling back to local extractor: %s", e)
 
         # Fallback to local intelligent extractor if Gemini is unconfigured or failed
         if not extracted_data:
@@ -251,11 +263,12 @@ class VisionExtractionEngine:
             "results": extracted_data.get("results", []),
             "detected_ocr_lines": ocr_lines,
             "extraction_mode": extraction_mode,
-            "extraction_warning": extraction_warning
+            "extraction_warning": extraction_warning,
         }
 
     def _extract_with_gemini(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:
         import google.generativeai as genai
+
         genai.configure(api_key=self.api_key)
         model = genai.GenerativeModel("gemini-1.5-flash")
 
@@ -295,10 +308,7 @@ class VisionExtractionEngine:
         else:
             payload_bytes, mime_type = optimize_image_for_vision(file_bytes, max_dim=2048)
 
-        response = model.generate_content([
-            {"mime_type": mime_type, "data": payload_bytes},
-            prompt
-        ])
+        response = model.generate_content([{"mime_type": mime_type, "data": payload_bytes}, prompt])
         text = response.text.strip()
         if text.startswith("```json"):
             text = text[7:]
@@ -321,7 +331,7 @@ class VisionExtractionEngine:
                     "ref_high": 4.5,
                     "ref_raw": "0.40 - 4.50",
                     "is_abnormal": True,
-                    "confidence": 0.96
+                    "confidence": 0.96,
                 },
                 {
                     "test_name": "Total Cholesterol",
@@ -331,7 +341,7 @@ class VisionExtractionEngine:
                     "ref_high": 200.0,
                     "ref_raw": "< 200.0",
                     "is_abnormal": True,
-                    "confidence": 0.94
+                    "confidence": 0.94,
                 },
                 {
                     "test_name": "Triglycerides",
@@ -341,7 +351,7 @@ class VisionExtractionEngine:
                     "ref_high": 150.0,
                     "ref_raw": "< 150.0",
                     "is_abnormal": True,
-                    "confidence": 0.92
+                    "confidence": 0.92,
                 },
                 {
                     "test_name": "HDL Cholesterol",
@@ -351,7 +361,7 @@ class VisionExtractionEngine:
                     "ref_high": 60.0,
                     "ref_raw": "> 40.0",
                     "is_abnormal": True,
-                    "confidence": 0.91
+                    "confidence": 0.91,
                 },
                 {
                     "test_name": "LDL Cholesterol",
@@ -361,7 +371,7 @@ class VisionExtractionEngine:
                     "ref_high": 100.0,
                     "ref_raw": "< 100.0",
                     "is_abnormal": True,
-                    "confidence": 0.93
+                    "confidence": 0.93,
                 },
                 {
                     "test_name": "Fasting Blood Glucose",
@@ -371,7 +381,7 @@ class VisionExtractionEngine:
                     "ref_high": 99.0,
                     "ref_raw": "70.0 - 99.0",
                     "is_abnormal": False,
-                    "confidence": 0.98
+                    "confidence": 0.98,
                 },
                 {
                     "test_name": "Serum Creatinine",
@@ -381,17 +391,38 @@ class VisionExtractionEngine:
                     "ref_high": 1.2,
                     "ref_raw": "0.60 - 1.20",
                     "is_abnormal": False,
-                    "confidence": 0.97
-                }
+                    "confidence": 0.97,
+                },
             ],
             "detected_ocr_lines": [
-                {"text": "Patient Name: Arjun Sharma | Age: 42 Y / Male", "bbox": {"x": 0.08, "y": 0.16, "w": 0.84, "h": 0.035}},
-                {"text": "TSH (Thyroid Stimulating Hormone)  6.8 uIU/mL (0.40 - 4.50)", "bbox": {"x": 0.08, "y": 0.28, "w": 0.84, "h": 0.038}},
-                {"text": "Total Cholesterol  242.0 mg/dL (125.0 - 200.0)", "bbox": {"x": 0.08, "y": 0.35, "w": 0.84, "h": 0.038}},
-                {"text": "Triglycerides  195.0 mg/dL (50.0 - 150.0)", "bbox": {"x": 0.08, "y": 0.42, "w": 0.84, "h": 0.038}},
+                {
+                    "text": "Patient Name: Arjun Sharma | Age: 42 Y / Male",
+                    "bbox": {"x": 0.08, "y": 0.16, "w": 0.84, "h": 0.035},
+                },
+                {
+                    "text": "TSH (Thyroid Stimulating Hormone)  6.8 uIU/mL (0.40 - 4.50)",
+                    "bbox": {"x": 0.08, "y": 0.28, "w": 0.84, "h": 0.038},
+                },
+                {
+                    "text": "Total Cholesterol  242.0 mg/dL (125.0 - 200.0)",
+                    "bbox": {"x": 0.08, "y": 0.35, "w": 0.84, "h": 0.038},
+                },
+                {
+                    "text": "Triglycerides  195.0 mg/dL (50.0 - 150.0)",
+                    "bbox": {"x": 0.08, "y": 0.42, "w": 0.84, "h": 0.038},
+                },
                 {"text": "HDL Cholesterol  38.0 mg/dL (> 40.0)", "bbox": {"x": 0.08, "y": 0.49, "w": 0.84, "h": 0.038}},
-                {"text": "LDL Cholesterol  165.0 mg/dL (< 100.0)", "bbox": {"x": 0.08, "y": 0.56, "w": 0.84, "h": 0.038}},
-                {"text": "Fasting Blood Glucose  94.0 mg/dL (70.0 - 99.0)", "bbox": {"x": 0.08, "y": 0.63, "w": 0.84, "h": 0.038}},
-                {"text": "Serum Creatinine  0.9 mg/dL (0.60 - 1.20)", "bbox": {"x": 0.08, "y": 0.70, "w": 0.84, "h": 0.038}}
-            ]
+                {
+                    "text": "LDL Cholesterol  165.0 mg/dL (< 100.0)",
+                    "bbox": {"x": 0.08, "y": 0.56, "w": 0.84, "h": 0.038},
+                },
+                {
+                    "text": "Fasting Blood Glucose  94.0 mg/dL (70.0 - 99.0)",
+                    "bbox": {"x": 0.08, "y": 0.63, "w": 0.84, "h": 0.038},
+                },
+                {
+                    "text": "Serum Creatinine  0.9 mg/dL (0.60 - 1.20)",
+                    "bbox": {"x": 0.08, "y": 0.70, "w": 0.84, "h": 0.038},
+                },
+            ],
         }

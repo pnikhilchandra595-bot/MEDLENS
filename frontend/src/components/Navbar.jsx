@@ -28,7 +28,12 @@ export default function Navbar({
         <div className="flex items-center justify-between h-16">
           
           {/* Logo & Platform Tagline */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('results')}>
+          <button
+            type="button"
+            className="flex items-center gap-3 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-xl"
+            onClick={() => setActiveTab('results')}
+            aria-label="Go to MedLens results dashboard"
+          >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-1 ring-white/20">
               <Activity className="w-6 h-6 text-slate-950 stroke-[2.5]" />
             </div>
@@ -45,7 +50,7 @@ export default function Navbar({
                 Clinical Report Intelligence & Patient Memory
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 text-xs font-medium">

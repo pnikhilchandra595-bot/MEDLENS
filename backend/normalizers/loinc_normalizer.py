@@ -1,8 +1,13 @@
-import os
 import json
-import requests
-from typing import Dict, Any, Optional, List
+import logging
+import os
 from difflib import SequenceMatcher
+from typing import Any, Dict, Optional
+
+import requests
+
+logger = logging.getLogger(__name__)
+
 
 class LoincNormalizer:
     """
@@ -28,7 +33,7 @@ class LoincNormalizer:
                 with open(self.map_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[LoincNormalizer] Error loading local LOINC map: {e}")
+                logger.error("[LoincNormalizer] Error loading local LOINC map: %s", e)
         return {}
 
     def normalize(self, raw_test_name: str) -> Dict[str, Any]:
@@ -42,7 +47,7 @@ class LoincNormalizer:
                 "canonical_name": "Unrecognized Test (Flagged for Human Review)",
                 "category": "Unclassified",
                 "is_recognized": False,
-                "source": "None"
+                "source": "None",
             }
 
         cleaned_query = raw_test_name.lower().strip()
@@ -70,7 +75,7 @@ class LoincNormalizer:
             "category": "Unclassified",
             "is_recognized": False,
             "match_confidence": 0.0,
-            "source": "Unrecognized"
+            "source": "Unrecognized",
         }
         self._cache[cleaned_query] = fallback_result
         return fallback_result
@@ -85,7 +90,7 @@ class LoincNormalizer:
                 "category": entry.get("category", "General"),
                 "standard_unit": entry.get("unit"),
                 "is_recognized": True,
-                "source": "Local Certified Dictionary"
+                "source": "Local Certified Dictionary",
             }
 
         best_match_key = None
@@ -109,7 +114,7 @@ class LoincNormalizer:
                 "standard_unit": entry.get("unit"),
                 "is_recognized": True,
                 "match_confidence": round(best_score, 1),
-                "source": "Local Fuzzy Match"
+                "source": "Local Fuzzy Match",
             }
 
         return {"is_recognized": False}
@@ -119,11 +124,7 @@ class LoincNormalizer:
         Queries the official U.S. NLM Clinical Tables API for live LOINC code resolution.
         """
         try:
-            params = {
-                "terms": query,
-                "df": "LOINC_NUM,COMPONENT,LONG_COMMON_NAME,SYSTEM,EXAMPLE_UNITS",
-                "maxList": 5
-            }
+            params = {"terms": query, "df": "LOINC_NUM,COMPONENT,LONG_COMMON_NAME,SYSTEM,EXAMPLE_UNITS", "maxList": 5}
             resp = requests.get(self.NLM_API_URL, params=params, timeout=2.5)
             if resp.status_code == 200:
                 data = resp.json()
@@ -143,8 +144,8 @@ class LoincNormalizer:
                             "category": "NLM Clinical Pathology",
                             "standard_unit": unit,
                             "is_recognized": True,
-                            "source": "NLM Clinical Tables API (Live)"
+                            "source": "NLM Clinical Tables API (Live)",
                         }
         except Exception as e:
-            print(f"[LoincNormalizer] NLM API call skipped/failed ({e}), using local fallback.")
+            logger.debug("[LoincNormalizer] NLM API call skipped/failed (%s), using local fallback.", e)
         return None

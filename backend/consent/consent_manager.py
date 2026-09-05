@@ -1,9 +1,14 @@
+import logging
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
+from database import Consent, Patient, PatientReportedData, Report, ReportHash, TestResult
 from sqlalchemy.orm import Session
-from database import Patient, Report, TestResult, PatientReportedData, Consent, ReportHash
+
+logger = logging.getLogger(__name__)
+
 
 class ConsentManager:
     """
@@ -16,7 +21,7 @@ class ConsentManager:
         db: Session,
         patient_id: str,
         purpose: str = "Clinical report extraction and temporal intelligence",
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
     ) -> Consent:
         consent_id = f"cst-{uuid.uuid4().hex[:8]}"
         consent = Consent(
@@ -24,7 +29,7 @@ class ConsentManager:
             patient_id=patient_id,
             consented_at=datetime.now(timezone.utc),
             purpose=purpose,
-            consent_ip=ip_address
+            consent_ip=ip_address,
         )
         db.add(consent)
         db.commit()
@@ -33,10 +38,12 @@ class ConsentManager:
 
     @staticmethod
     def get_consent_status(db: Session, patient_id: str) -> Dict[str, Any]:
-        consents = db.query(Consent).filter(Consent.patient_id == patient_id).order_by(Consent.consented_at.desc()).all()
+        consents = (
+            db.query(Consent).filter(Consent.patient_id == patient_id).order_by(Consent.consented_at.desc()).all()
+        )
         if not consents:
             return {"has_consented": False, "status": "no_consent_record", "consents": []}
-        
+
         latest = consents[0]
         is_active = latest.revoked_at is None
         return {
@@ -44,7 +51,7 @@ class ConsentManager:
             "status": "active" if is_active else "revoked",
             "latest_consent_date": latest.consented_at.isoformat() if latest.consented_at else None,
             "purpose": latest.purpose,
-            "total_records": len(consents)
+            "total_records": len(consents),
         }
 
     @staticmethod
@@ -62,13 +69,15 @@ class ConsentManager:
                     os.remove(r.file_path)
                     files_deleted += 1
                 except Exception as e:
-                    print(f"[ConsentManager] Error removing file {r.file_path}: {e}")
+                    logger.warning("[ConsentManager] Error removing file %s: %s", r.file_path, e)
 
         # Cascade delete across all tables
         db.query(ReportHash).filter(ReportHash.report_id.in_([r.id for r in reports])).delete(synchronize_session=False)
         db.query(TestResult).filter(TestResult.patient_id == patient_id).delete(synchronize_session=False)
         db.query(Report).filter(Report.patient_id == patient_id).delete(synchronize_session=False)
-        db.query(PatientReportedData).filter(PatientReportedData.patient_id == patient_id).delete(synchronize_session=False)
+        db.query(PatientReportedData).filter(PatientReportedData.patient_id == patient_id).delete(
+            synchronize_session=False
+        )
         db.query(Consent).filter(Consent.patient_id == patient_id).delete(synchronize_session=False)
         db.query(Patient).filter(Patient.id == patient_id).delete(synchronize_session=False)
 
@@ -78,5 +87,5 @@ class ConsentManager:
             "status": "success",
             "message": "All patient personal data, test records, biometric trends, and consent logs permanently erased in compliance with DPDP regulations.",
             "patient_id": patient_id,
-            "purged_files_count": files_deleted
+            "purged_files_count": files_deleted,
         }

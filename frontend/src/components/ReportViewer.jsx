@@ -304,20 +304,13 @@ export default function ReportViewer({
                   const isGrounded = res.bbox && res.is_grounded !== false;
 
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={res.id}
                       onClick={() => onSelectResult && onSelectResult(res.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onSelectResult && onSelectResult(res.id);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
                       aria-pressed={isSelected}
                       aria-label={`${res.test_name}: ${res.value} ${res.unit || ''}`}
-                      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                      className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         isSelected
                           ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/50'
                           : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 text-slate-300'
@@ -343,7 +336,7 @@ export default function ReportViewer({
                           )}
                         </span>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

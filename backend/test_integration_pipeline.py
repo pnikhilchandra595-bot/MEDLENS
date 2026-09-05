@@ -1,20 +1,18 @@
 import os
 import sys
-import json
 import unittest
-from io import BytesIO
 
 # Add backend directory to sys.path
 sys.path.insert(0, os.path.dirname(__file__))
 
+from adversarial.interpreter import validate_and_sanitize_output
+from database import Patient, Report, ResultAuditTrail, SessionLocal, init_db
 from fastapi.testclient import TestClient
 from main import app, generate_session_token, verify_session_token
-from database import init_db, get_db, SessionLocal, Patient, Report, TestResult, AiSummaryCache, ResultAuditTrail
-from adversarial.interpreter import validate_and_sanitize_output
 from samples.sample_data import seed_sample_database
 
-class TestMedLensIntegrationAndSecurity(unittest.TestCase):
 
+class TestMedLensIntegrationAndSecurity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         os.environ["MEDLENS_DB_PATH"] = os.path.join(os.path.dirname(__file__), "test_integration.db")
@@ -48,7 +46,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         resp = self.client.post(
             "/api/upload",
             data={"consent_confirmed": "true", "patient_name": "Test Security Patient"},
-            files={"file": file_obj}
+            files={"file": file_obj},
         )
         self.assertEqual(resp.status_code, 400)
         self.assertIn("Invalid file format", resp.json()["detail"])
@@ -59,7 +57,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         resp = self.client.post(
             "/api/upload",
             data={"consent_confirmed": "true", "patient_name": "Integration Patient"},
-            files={"file": file_obj}
+            files={"file": file_obj},
         )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -74,15 +72,15 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertEqual(reports_resp.status_code, 200)
         patients = reports_resp.json()
         self.assertGreater(len(patients), 0)
-        
+
         target_patient = patients[0]
         patient_reports = self.client.get(f"/api/patients/{target_patient['id']}/reports").json()
         self.assertGreater(len(patient_reports), 0)
-        
+
         report_id = patient_reports[0]["id"]
         report_details = self.client.get(f"/api/reports/{report_id}").json()
         self.assertIn("results", report_details)
-        
+
         for r in report_details["results"]:
             if r.get("bbox"):
                 bbox = r["bbox"]
@@ -101,11 +99,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
 
         unauth_resp = self.client.post(
             f"/api/reports/{report.id}/correct-result",
-            json={
-                "result_id": test_res.id,
-                "corrected_value": 5.5,
-                "correction_reason": "Missing token attempt"
-            }
+            json={"result_id": test_res.id, "corrected_value": 5.5, "correction_reason": "Missing token attempt"},
         )
         self.assertEqual(unauth_resp.status_code, 401)
         self.assertIn("Authentication token is required", unauth_resp.json()["detail"])
@@ -118,8 +112,8 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
             json={
                 "result_id": test_res.id,
                 "corrected_value": 4.2,
-                "correction_reason": "Verified against pathologist physical slide"
-            }
+                "correction_reason": "Verified against pathologist physical slide",
+            },
         )
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
@@ -136,7 +130,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         # Attempt to correct with a token belonging to another patient
         patient1 = self.db.query(Patient).first()
         reports = self.db.query(Report).filter(Report.patient_id == patient1.id).first()
-        
+
         # Token for fraudulent patient
         fake_token = generate_session_token("pat-fraudulent-attacker")
         resp = self.client.post(
@@ -145,14 +139,15 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
             json={
                 "result_id": reports.test_results[0].id,
                 "corrected_value": 99.9,
-                "correction_reason": "Malicious tampering"
-            }
+                "correction_reason": "Malicious tampering",
+            },
         )
         self.assertEqual(resp.status_code, 403)
         self.assertIn("Forbidden", resp.json()["detail"])
 
     def test_07_delete_endpoint_strictly_enforces_authentication(self):
         import uuid
+
         temp_id = f"pat-delete-guard-{uuid.uuid4().hex[:6]}"
         p = Patient(id=temp_id, name="Delete Guard Patient")
         self.db.add(p)
@@ -168,8 +163,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         # 2. Fraudulent Authorization token -> MUST return 403 Forbidden
         attacker_token = generate_session_token("pat-attacker-999")
         forbidden_resp = self.client.delete(
-            f"/api/delete-my-data/{temp_id}",
-            headers={"Authorization": f"Bearer {attacker_token}"}
+            f"/api/delete-my-data/{temp_id}", headers={"Authorization": f"Bearer {attacker_token}"}
         )
         self.assertEqual(forbidden_resp.status_code, 403)
         self.assertIn("Forbidden", forbidden_resp.json()["detail"])
@@ -179,8 +173,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         # 3. Legitimate matching Authorization token -> MUST succeed with 200
         legit_token = generate_session_token(temp_id)
         success_resp = self.client.delete(
-            f"/api/delete-my-data/{temp_id}",
-            headers={"Authorization": f"Bearer {legit_token}"}
+            f"/api/delete-my-data/{temp_id}", headers={"Authorization": f"Bearer {legit_token}"}
         )
         self.assertEqual(success_resp.status_code, 200)
         # Verify patient record is now permanently deleted
@@ -203,13 +196,14 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
             "Patient has advanced liver cirrhosis and hepatitis.",
             "Biomarkers show presence of leukemia or lymphoma.",
             "Diagnosis: acute metabolic syndrome.",
-            "The patient is diagnosed with polycystic ovary syndrome."
+            "The patient is diagnosed with polycystic ovary syndrome.",
         ]
 
         for phrase in adversarial_test_cases:
             is_safe, violation = validate_and_sanitize_output(phrase)
             self.assertFalse(is_safe, f"Failed to intercept adversarial phrase: '{phrase}'")
             self.assertIsNotNone(violation)
+
 
 if __name__ == "__main__":
     unittest.main()

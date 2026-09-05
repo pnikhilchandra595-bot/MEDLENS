@@ -1,7 +1,10 @@
-import os
 import json
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+import logging
+import os
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
 
 class TemporalIntelligenceEngine:
     """
@@ -23,13 +26,10 @@ class TemporalIntelligenceEngine:
                 with open(self.correlation_map_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[TemporalEngine] Error loading correlation map: {e}")
+                logger.error("[TemporalEngine] Error loading correlation map: %s", e)
         return {}
 
-    def analyze_patient_timeline(
-        self,
-        historical_reports: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def analyze_patient_timeline(self, historical_reports: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Accepts a list of historical reports (ordered chronologically), each containing a list of test results.
         Returns:
@@ -41,7 +41,7 @@ class TemporalIntelligenceEngine:
             return {
                 "analyte_trends": {},
                 "correlation_flags": [],
-                "timeline_summary": "No historical lab reports found for temporal comparison."
+                "timeline_summary": "No historical lab reports found for temporal comparison.",
             }
 
         # Group results by LOINC code (or fallback canonical/test name)
@@ -58,24 +58,26 @@ class TemporalIntelligenceEngine:
                 if key not in series_by_marker:
                     series_by_marker[key] = []
 
-                series_by_marker[key].append({
-                    "report_id": rep_id,
-                    "report_date": rep_date,
-                    "test_name": res.get("canonical_name") or res.get("test_name"),
-                    "loinc_code": res.get("loinc_code"),
-                    "value": res.get("value"),
-                    "unit": res.get("unit"),
-                    "ref_low": res.get("ref_low"),
-                    "ref_high": res.get("ref_high"),
-                    "is_abnormal": res.get("is_abnormal", False),
-                    "confidence_tier": res.get("confidence_tier", "high")
-                })
+                series_by_marker[key].append(
+                    {
+                        "report_id": rep_id,
+                        "report_date": rep_date,
+                        "test_name": res.get("canonical_name") or res.get("test_name"),
+                        "loinc_code": res.get("loinc_code"),
+                        "value": res.get("value"),
+                        "unit": res.get("unit"),
+                        "ref_low": res.get("ref_low"),
+                        "ref_high": res.get("ref_high"),
+                        "is_abnormal": res.get("is_abnormal", False),
+                        "confidence_tier": res.get("confidence_tier", "high"),
+                    }
+                )
 
         analyte_trends = {}
         for key, points in series_by_marker.items():
             if not points:
                 continue
-            
+
             # Sort chronologically by date
             points.sort(key=lambda x: str(x.get("report_date", "")))
 
@@ -112,7 +114,7 @@ class TemporalIntelligenceEngine:
                 "delta": delta,
                 "pct_change": pct_change,
                 "direction": direction,
-                "threshold_event": threshold_event
+                "threshold_event": threshold_event,
             }
 
         # Multi-marker correlation analysis
@@ -126,26 +128,30 @@ class TemporalIntelligenceEngine:
                 if t1 and t2 and len(t1["history"]) >= 2 and len(t2["history"]) >= 2:
                     # Check if both have shifted in the correlated direction
                     if t1["direction"] == "increasing" and t2["direction"] == "increasing":
-                        correlation_flags.append({
-                            "pair_key": pair_key,
-                            "pair_name": template.get("pair_name"),
-                            "markers": [t1["marker_name"], t2["marker_name"]],
-                            "observation": template.get("description"),
-                            "directions": f"{t1['marker_name']} ({t1['direction']}) + {t2['marker_name']} ({t2['direction']})",
-                            "source": "AI-generated"
-                        })
+                        correlation_flags.append(
+                            {
+                                "pair_key": pair_key,
+                                "pair_name": template.get("pair_name"),
+                                "markers": [t1["marker_name"], t2["marker_name"]],
+                                "observation": template.get("description"),
+                                "directions": f"{t1['marker_name']} ({t1['direction']}) + {t2['marker_name']} ({t2['direction']})",
+                                "source": "AI-generated",
+                            }
+                        )
                     elif t1["direction"] == "decreasing" and t2["direction"] == "decreasing":
-                        correlation_flags.append({
-                            "pair_key": pair_key,
-                            "pair_name": template.get("pair_name"),
-                            "markers": [t1["marker_name"], t2["marker_name"]],
-                            "observation": template.get("description"),
-                            "directions": f"{t1['marker_name']} ({t1['direction']}) + {t2['marker_name']} ({t2['direction']})",
-                            "source": "AI-generated"
-                        })
+                        correlation_flags.append(
+                            {
+                                "pair_key": pair_key,
+                                "pair_name": template.get("pair_name"),
+                                "markers": [t1["marker_name"], t2["marker_name"]],
+                                "observation": template.get("description"),
+                                "directions": f"{t1['marker_name']} ({t1['direction']}) + {t2['marker_name']} ({t2['direction']})",
+                                "source": "AI-generated",
+                            }
+                        )
 
         return {
             "analyte_trends": analyte_trends,
             "correlation_flags": correlation_flags,
-            "reports_analyzed_count": len(historical_reports)
+            "reports_analyzed_count": len(historical_reports),
         }

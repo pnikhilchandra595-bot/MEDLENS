@@ -1,20 +1,57 @@
-import os
 import json
+import logging
+import os
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 # Comprehensive clinical condition & diagnostic phrase blocklist
 DIAGNOSTIC_BLOCKLIST = [
-    "hypothyroidism", "hyperthyroidism", "thyroiditis", "hashimoto", "graves",
-    "diabetes", "diabetic", "prediabetes", "insulin resistance",
-    "anemia", "anemic", "iron deficiency", "thalassemia",
-    "dyslipidemia", "hyperlipidemia", "hypercholesterolemia", "atherosclerosis",
-    "nephropathy", "chronic kidney disease", "ckd", "renal failure", "nephritis",
-    "hepatitis", "fatty liver", "cirrhosis", "liver failure",
-    "hypertension", "hypertensive", "hypotension", "cardiovascular disease",
-    "leukemia", "lymphoma", "malignancy", "cancer", "tumor", "carcinoma",
-    "infection", "sepsis", "inflammatory bowel disease", "rheumatoid",
-    "deficiency disease", "metabolic syndrome", "polycystic ovary", "pcos"
+    "hypothyroidism",
+    "hyperthyroidism",
+    "thyroiditis",
+    "hashimoto",
+    "graves",
+    "diabetes",
+    "diabetic",
+    "prediabetes",
+    "insulin resistance",
+    "anemia",
+    "anemic",
+    "iron deficiency",
+    "thalassemia",
+    "dyslipidemia",
+    "hyperlipidemia",
+    "hypercholesterolemia",
+    "atherosclerosis",
+    "nephropathy",
+    "chronic kidney disease",
+    "ckd",
+    "renal failure",
+    "nephritis",
+    "hepatitis",
+    "fatty liver",
+    "cirrhosis",
+    "liver failure",
+    "hypertension",
+    "hypertensive",
+    "hypotension",
+    "cardiovascular disease",
+    "leukemia",
+    "lymphoma",
+    "malignancy",
+    "cancer",
+    "tumor",
+    "carcinoma",
+    "infection",
+    "sepsis",
+    "inflammatory bowel disease",
+    "rheumatoid",
+    "deficiency disease",
+    "metabolic syndrome",
+    "polycystic ovary",
+    "pcos",
 ]
 
 DIAGNOSTIC_REGEX_PATTERNS = [
@@ -22,8 +59,9 @@ DIAGNOSTIC_REGEX_PATTERNS = [
     re.compile(r"\bsuffer(ing|s)?\s+from\b", re.IGNORECASE),
     re.compile(r"\bhas\s+[a-z\s]+disease\b", re.IGNORECASE),
     re.compile(r"\bpatient\s+(is|has)\s+[a-z\s]*(diabetic|anemic|hypothyroid)\b", re.IGNORECASE),
-    re.compile(r"\bindicates\s+(a\s+case\s+of|the\s+presence\s+of)\b", re.IGNORECASE)
+    re.compile(r"\bindicates\s+(a\s+case\s+of|the\s+presence\s+of)\b", re.IGNORECASE),
 ]
+
 
 def validate_and_sanitize_output(text: str) -> Tuple[bool, Optional[str]]:
     """
@@ -35,7 +73,7 @@ def validate_and_sanitize_output(text: str) -> Tuple[bool, Optional[str]]:
         return True, None
 
     lower_text = text.lower()
-    
+
     # Check keyword blocklist
     for term in DIAGNOSTIC_BLOCKLIST:
         # Match whole words to avoid sub-word false positives
@@ -65,7 +103,7 @@ class AdversarialInterpreter:
         self,
         extracted_results: List[Dict[str, Any]],
         temporal_analysis: Optional[Dict[str, Any]] = None,
-        language: str = "en"
+        language: str = "en",
     ) -> Dict[str, Any]:
         """
         Executes full Phase 3 pipeline:
@@ -97,7 +135,7 @@ class AdversarialInterpreter:
             "counter_explanations": counter_explanations,
             "doctor_questions": doctor_questions,
             "language": language,
-            "source": "AI-generated"
+            "source": "AI-generated",
         }
 
     def _format_flag_count_text(self, count: int, language: str) -> str:
@@ -108,17 +146,15 @@ class AdversarialInterpreter:
         return f"{count} value{'s' if count != 1 else ''} flagged outside standard laboratory reference range."
 
     def _generate_primary_interpretation(
-        self,
-        extracted_results: List[Dict[str, Any]],
-        temporal_analysis: Optional[Dict[str, Any]],
-        language: str
+        self, extracted_results: List[Dict[str, Any]], temporal_analysis: Optional[Dict[str, Any]], language: str
     ) -> str:
         # Build prompt or use deterministic localized template
         if self.api_key:
             try:
                 import google.generativeai as genai
+
                 genai.configure(api_key=self.api_key)
-                
+
                 prompt = f"""
                 Patient lab findings: {json.dumps(extracted_results, default=str)}
                 Temporal trend info: {json.dumps(temporal_analysis, default=str)}
@@ -132,8 +168,14 @@ class AdversarialInterpreter:
                 - Maximum 3 sentences.
                 - Output ONLY the summary text in the requested language ({language}).
                 """
-                
-                for model_name in ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-pro"]:
+
+                for model_name in [
+                    "gemini-1.5-flash-latest",
+                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-pro-latest",
+                    "gemini-pro",
+                ]:
                     try:
                         model = genai.GenerativeModel(model_name)
                         resp = model.generate_content(prompt)
@@ -144,12 +186,15 @@ class AdversarialInterpreter:
                             if is_safe:
                                 return candidate_text
                             else:
-                                print(f"[AdversarialSafety] Safety violation intercepted: {violation_reason}. Discarding LLM output and reverting to deterministic template.")
+                                logger.warning(
+                                    "[AdversarialSafety] Safety violation intercepted: %s. Discarding LLM output and reverting to deterministic template.",
+                                    violation_reason,
+                                )
                                 break
                     except Exception:
                         continue
             except Exception as e:
-                print(f"[AdversarialAI] Gemini call fallback: {e}")
+                logger.info("[AdversarialAI] Gemini call fallback: %s", e)
 
         # High quality localized deterministic template
         flagged = [r for r in extracted_results if r.get("is_abnormal")]
@@ -161,7 +206,7 @@ class AdversarialInterpreter:
             return "All recorded laboratory test values on this report are currently within their standard reference intervals."
 
         names_str = ", ".join([r.get("canonical_name") or r.get("test_name") for r in flagged[:3]])
-        
+
         # Check temporal shifts
         trends = (temporal_analysis or {}).get("analyte_trends", {})
         shifts = []
@@ -175,13 +220,10 @@ class AdversarialInterpreter:
             return f"आपकी वर्तमान रिपोर्ट में {names_str} के मान प्रयोगशाला संदर्भ सीमा से बाहर हैं।{shift_text} यह विवरण केवल संख्यात्मक परिवर्तनों का सारांश है।"
         elif language == "te":
             return f"మీ ప్రస్తుత రిపోర్టులో {names_str} విలువలు సాధారణ ప్రయోగశాల పరిధి కంటే భిన్నంగా ఉన్నాయి.{shift_text} ఇది సంఖ్యా మార్పుల వివరాలు మాత్రమే."
-        return f"On your report, {names_str} {'is' if len(flagged)==1 else 'are'} outside standard laboratory reference intervals.{shift_text} This review outlines numerical shifts for physician consultation."
+        return f"On your report, {names_str} {'is' if len(flagged) == 1 else 'are'} outside standard laboratory reference intervals.{shift_text} This review outlines numerical shifts for physician consultation."
 
     def _generate_counter_explanations(
-        self,
-        primary_interpretation: str,
-        flagged_tests: List[Dict[str, Any]],
-        language: str
+        self, primary_interpretation: str, flagged_tests: List[Dict[str, Any]], language: str
     ) -> List[str]:
         """
         Improvisation #3 & Phase 3.2: Gated counter-argument.
@@ -191,13 +233,20 @@ class AdversarialInterpreter:
         if self.api_key:
             try:
                 import google.generativeai as genai
+
                 genai.configure(api_key=self.api_key)
                 prompt = f"""
                 Given this non-diagnostic lab observation: "{primary_interpretation}"
                 List exactly 2 plausible, non-diagnostic alternative physiological or technical explanations for these variations (e.g., hydration levels, fasting duration, time of blood collection, recent strenuous exertion, or lab assay differences).
                 Format as JSON array of 2 short strings in language: {language}.
                 """
-                for model_name in ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-pro"]:
+                for model_name in [
+                    "gemini-1.5-flash-latest",
+                    "gemini-1.5-flash",
+                    "gemini-2.0-flash",
+                    "gemini-1.5-pro-latest",
+                    "gemini-pro",
+                ]:
                     try:
                         model = genai.GenerativeModel(model_name)
                         resp = model.generate_content(prompt)
@@ -212,44 +261,41 @@ class AdversarialInterpreter:
                     except Exception:
                         continue
             except Exception as e:
-                print(f"[AdversarialAI] Counter-prompt fallback: {e}")
+                logger.info("[AdversarialAI] Counter-prompt fallback: %s", e)
 
         # Curated clinical non-diagnostic alternatives
         if language == "hi":
             return [
                 "हाइड्रेशन स्तर, उपवास की अवधि (Fasting duration) या रक्त के नमूने के समय में अंतर के कारण मानों में सामान्य उतार-चढ़ाव हो सकता है।",
-                "हाल ही में किए गए शारीरिक श्रम, तनाव, या विभिन्न प्रयोगशाला परीक्षण विधियों (Assay methods) का प्रभाव हो सकता है।"
+                "हाल ही में किए गए शारीरिक श्रम, तनाव, या विभिन्न प्रयोगशाला परीक्षण विधियों (Assay methods) का प्रभाव हो सकता है।",
             ]
         elif language == "te":
             return [
                 "శరీరంలో నీటి శాతం (Hydration), ఉపవాస సమయం లేదా రక్త నమూనా తీసుకున్న సమయం వల్ల ఈ విలువల్లో తేడాలు ఉండవచ్చు.",
-                "ఇటీవలి శారీరక శ్రమ, అలసట లేదా వేర్వేరు ల్యాబ్ పరీక్షా విధానాల వల్ల కూడా ఫలితాల్లో స్వల్ప మార్పులు రావచ్చు."
+                "ఇటీవలి శారీరక శ్రమ, అలసట లేదా వేర్వేరు ల్యాబ్ పరీక్షా విధానాల వల్ల కూడా ఫలితాల్లో స్వల్ప మార్పులు రావచ్చు.",
             ]
         return [
             "Variations in hydration status, exact fasting duration, or time of day of blood collection can naturally shift circulating analyte concentrations.",
-            "Recent physical exertion, temporary dietary changes, or differences in laboratory assay calibration between test batches."
+            "Recent physical exertion, temporary dietary changes, or differences in laboratory assay calibration between test batches.",
         ]
 
     def _generate_doctor_questions(
-        self,
-        flagged_tests: List[Dict[str, Any]],
-        temporal_analysis: Optional[Dict[str, Any]],
-        language: str
+        self, flagged_tests: List[Dict[str, Any]], temporal_analysis: Optional[Dict[str, Any]], language: str
     ) -> List[str]:
         if language == "hi":
             return [
                 "क्या मुझे इन मानों की पुष्टि के लिए एक निश्चित समय के बाद दोबारा परीक्षण (Retest) कराना चाहिए?",
                 "क्या मेरी वर्तमान दवाएं, आहार या जीवनशैली इन परीक्षण परिणामों को प्रभावित कर रही हैं?",
-                "क्या इन परीक्षण मानों के लिए मुझे किसी अन्य विशिष्ट जांच की आवश्यकता है?"
+                "क्या इन परीक्षण मानों के लिए मुझे किसी अन्य विशिष्ट जांच की आवश्यकता है?",
             ]
         elif language == "te":
             return [
                 "ఈ విలువల నిర్ధారణ కోసం నేను మళ్ళీ ఎప్పుడు పరీక్ష చేయించుకోవాలి?",
                 "నేను వాడుతున్న మందులు లేదా ఆహారపు అలవాట్లు ఈ ఫలితాలపై ఏమైనా ప్రభావం చూపుతున్నాయా?",
-                "ఈ నివేదిక ఆధారంగా నాకు ఇంకేమైనా తదుపరి పరీక్షలు అవసరమా?"
+                "ఈ నివేదిక ఆధారంగా నాకు ఇంకేమైనా తదుపరి పరీక్షలు అవసరమా?",
             ]
         return [
             "Would you recommend a follow-up retest in 4 to 8 weeks to observe if these values remain consistent?",
             "Could my current dietary routine, supplements, or medications be contributing to these specific shifts?",
-            "Are there any complementary biomarker checks or physical assessments you would advise based on these trends?"
+            "Are there any complementary biomarker checks or physical assessments you would advise based on these trends?",
         ]

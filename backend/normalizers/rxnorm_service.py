@@ -1,5 +1,10 @@
+import logging
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
+
 
 class RxNormService:
     """
@@ -12,29 +17,129 @@ class RxNormService:
 
     # Fast offline fallback and common brand-to-ingredient map for instant resolution
     COMMON_DRUG_MAP = {
-        "crocin": {"name": "Acetaminophen / Paracetamol", "rxcui": "161", "category": "Analgesic / Antipyretic", "ingredient": "acetaminophen"},
-        "calpol": {"name": "Acetaminophen / Paracetamol", "rxcui": "161", "category": "Analgesic / Antipyretic", "ingredient": "acetaminophen"},
-        "paracetamol": {"name": "Acetaminophen", "rxcui": "161", "category": "Analgesic / Antipyretic", "ingredient": "acetaminophen"},
-        "dolo": {"name": "Acetaminophen (Paracetamol 650mg)", "rxcui": "161", "category": "Analgesic / Antipyretic", "ingredient": "acetaminophen"},
-        "thyronorm": {"name": "Levothyroxine Sodium", "rxcui": "617314", "category": "Thyroid Hormone", "ingredient": "levothyroxine"},
-        "eltroxin": {"name": "Levothyroxine Sodium", "rxcui": "617314", "category": "Thyroid Hormone", "ingredient": "levothyroxine"},
-        "thyroxine": {"name": "Levothyroxine Sodium", "rxcui": "617314", "category": "Thyroid Hormone", "ingredient": "levothyroxine"},
-        "atorva": {"name": "Atorvastatin Calcium", "rxcui": "83367", "category": "HMG-CoA Reductase Inhibitor (Statin)", "ingredient": "atorvastatin"},
+        "crocin": {
+            "name": "Acetaminophen / Paracetamol",
+            "rxcui": "161",
+            "category": "Analgesic / Antipyretic",
+            "ingredient": "acetaminophen",
+        },
+        "calpol": {
+            "name": "Acetaminophen / Paracetamol",
+            "rxcui": "161",
+            "category": "Analgesic / Antipyretic",
+            "ingredient": "acetaminophen",
+        },
+        "paracetamol": {
+            "name": "Acetaminophen",
+            "rxcui": "161",
+            "category": "Analgesic / Antipyretic",
+            "ingredient": "acetaminophen",
+        },
+        "dolo": {
+            "name": "Acetaminophen (Paracetamol 650mg)",
+            "rxcui": "161",
+            "category": "Analgesic / Antipyretic",
+            "ingredient": "acetaminophen",
+        },
+        "thyronorm": {
+            "name": "Levothyroxine Sodium",
+            "rxcui": "617314",
+            "category": "Thyroid Hormone",
+            "ingredient": "levothyroxine",
+        },
+        "eltroxin": {
+            "name": "Levothyroxine Sodium",
+            "rxcui": "617314",
+            "category": "Thyroid Hormone",
+            "ingredient": "levothyroxine",
+        },
+        "thyroxine": {
+            "name": "Levothyroxine Sodium",
+            "rxcui": "617314",
+            "category": "Thyroid Hormone",
+            "ingredient": "levothyroxine",
+        },
+        "atorva": {
+            "name": "Atorvastatin Calcium",
+            "rxcui": "83367",
+            "category": "HMG-CoA Reductase Inhibitor (Statin)",
+            "ingredient": "atorvastatin",
+        },
         "atorvastatin": {"name": "Atorvastatin", "rxcui": "83367", "category": "Statin", "ingredient": "atorvastatin"},
-        "lipitor": {"name": "Atorvastatin Calcium", "rxcui": "83367", "category": "Statin", "ingredient": "atorvastatin"},
-        "glycomet": {"name": "Metformin Hydrochloride", "rxcui": "6809", "category": "Biguanide Antidiabetic", "ingredient": "metformin"},
-        "metformin": {"name": "Metformin", "rxcui": "6809", "category": "Biguanide Antidiabetic", "ingredient": "metformin"},
-        "glucophage": {"name": "Metformin Hydrochloride", "rxcui": "6809", "category": "Biguanide Antidiabetic", "ingredient": "metformin"},
+        "lipitor": {
+            "name": "Atorvastatin Calcium",
+            "rxcui": "83367",
+            "category": "Statin",
+            "ingredient": "atorvastatin",
+        },
+        "glycomet": {
+            "name": "Metformin Hydrochloride",
+            "rxcui": "6809",
+            "category": "Biguanide Antidiabetic",
+            "ingredient": "metformin",
+        },
+        "metformin": {
+            "name": "Metformin",
+            "rxcui": "6809",
+            "category": "Biguanide Antidiabetic",
+            "ingredient": "metformin",
+        },
+        "glucophage": {
+            "name": "Metformin Hydrochloride",
+            "rxcui": "6809",
+            "category": "Biguanide Antidiabetic",
+            "ingredient": "metformin",
+        },
         "brufen": {"name": "Ibuprofen", "rxcui": "5640", "category": "NSAID", "ingredient": "ibuprofen"},
-        "combiflam": {"name": "Ibuprofen + Paracetamol", "rxcui": "5640", "category": "NSAID Combination", "ingredient": "ibuprofen"},
-        "aspirin": {"name": "Aspirin", "rxcui": "1191", "category": "Antiplatelet / Salicylate", "ingredient": "aspirin"},
+        "combiflam": {
+            "name": "Ibuprofen + Paracetamol",
+            "rxcui": "5640",
+            "category": "NSAID Combination",
+            "ingredient": "ibuprofen",
+        },
+        "aspirin": {
+            "name": "Aspirin",
+            "rxcui": "1191",
+            "category": "Antiplatelet / Salicylate",
+            "ingredient": "aspirin",
+        },
         "ecosprin": {"name": "Aspirin Low Dose", "rxcui": "1191", "category": "Antiplatelet", "ingredient": "aspirin"},
-        "telma": {"name": "Telmisartan", "rxcui": "73032", "category": "Angiotensin II Receptor Blocker", "ingredient": "telmisartan"},
-        "telmisartan": {"name": "Telmisartan", "rxcui": "73032", "category": "Antihypertensive", "ingredient": "telmisartan"},
-        "amlong": {"name": "Amlodipine Besylate", "rxcui": "17767", "category": "Calcium Channel Blocker", "ingredient": "amlodipine"},
-        "amlodipine": {"name": "Amlodipine", "rxcui": "17767", "category": "Antihypertensive", "ingredient": "amlodipine"},
-        "pantocid": {"name": "Pantoprazole", "rxcui": "40790", "category": "Proton Pump Inhibitor", "ingredient": "pantoprazole"},
-        "pan": {"name": "Pantoprazole", "rxcui": "40790", "category": "Proton Pump Inhibitor", "ingredient": "pantoprazole"}
+        "telma": {
+            "name": "Telmisartan",
+            "rxcui": "73032",
+            "category": "Angiotensin II Receptor Blocker",
+            "ingredient": "telmisartan",
+        },
+        "telmisartan": {
+            "name": "Telmisartan",
+            "rxcui": "73032",
+            "category": "Antihypertensive",
+            "ingredient": "telmisartan",
+        },
+        "amlong": {
+            "name": "Amlodipine Besylate",
+            "rxcui": "17767",
+            "category": "Calcium Channel Blocker",
+            "ingredient": "amlodipine",
+        },
+        "amlodipine": {
+            "name": "Amlodipine",
+            "rxcui": "17767",
+            "category": "Antihypertensive",
+            "ingredient": "amlodipine",
+        },
+        "pantocid": {
+            "name": "Pantoprazole",
+            "rxcui": "40790",
+            "category": "Proton Pump Inhibitor",
+            "ingredient": "pantoprazole",
+        },
+        "pan": {
+            "name": "Pantoprazole",
+            "rxcui": "40790",
+            "category": "Proton Pump Inhibitor",
+            "ingredient": "pantoprazole",
+        },
     }
 
     def __init__(self):
@@ -63,7 +168,7 @@ class RxNormService:
                     "category": entry["category"],
                     "active_ingredient": entry["ingredient"],
                     "is_recognized": True,
-                    "source": "RxNorm Verified"
+                    "source": "RxNorm Verified",
                 }
                 self._cache[cleaned] = result
                 return result
@@ -82,7 +187,7 @@ class RxNormService:
             "category": "Unclassified Medication",
             "active_ingredient": drug_query.lower(),
             "is_recognized": False,
-            "source": "Patient-reported (Unmapped)"
+            "source": "Patient-reported (Unmapped)",
         }
         self._cache[cleaned] = fallback
         return fallback
@@ -104,8 +209,8 @@ class RxNormService:
                             "category": top.get("tty", "RxNorm Drug"),
                             "active_ingredient": top.get("name", "").split(" ")[0].lower(),
                             "is_recognized": True,
-                            "source": "NLM RxNorm API (Live)"
+                            "source": "NLM RxNorm API (Live)",
                         }
         except Exception as e:
-            print(f"[RxNorm] Live lookup skipped ({e}).")
+            logger.debug("[RxNorm] Live lookup skipped (%s).", e)
         return None

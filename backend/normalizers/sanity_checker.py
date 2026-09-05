@@ -1,6 +1,10 @@
-import os
 import json
-from typing import Dict, Any, Optional, Tuple
+import logging
+import os
+from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
+
 
 class BiologicalSanityChecker:
     """
@@ -21,7 +25,7 @@ class BiologicalSanityChecker:
                 with open(self.bio_ranges_path, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                print(f"[SanityChecker] Error loading bio ranges: {e}")
+                logger.error("[SanityChecker] Error loading bio ranges: %s", e)
         return {}
 
     def validate_result(
@@ -30,7 +34,7 @@ class BiologicalSanityChecker:
         value: Optional[float],
         ref_low: Optional[float],
         ref_high: Optional[float],
-        is_abnormal_extracted: Optional[bool] = None
+        is_abnormal_extracted: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Validates value and reference ranges:
@@ -44,7 +48,7 @@ class BiologicalSanityChecker:
                 "confidence_tier": "low",
                 "is_abnormal": False,
                 "sanity_status": "missing_value",
-                "message": "Numeric test value could not be extracted."
+                "message": "Numeric test value could not be extracted.",
             }
 
         bio_entry = self.bio_ranges.get(loinc_code) if loinc_code else None
@@ -58,14 +62,14 @@ class BiologicalSanityChecker:
                     "confidence_tier": "low",
                     "is_abnormal": True,
                     "sanity_status": "below_biological_limit",
-                    "message": f"Value {value} is below plausible human biological threshold ({min_bio}). Possible OCR error."
+                    "message": f"Value {value} is below plausible human biological threshold ({min_bio}). Possible OCR error.",
                 }
             if max_bio is not None and value > max_bio:
                 return {
                     "confidence_tier": "low",
                     "is_abnormal": True,
                     "sanity_status": "above_biological_limit",
-                    "message": f"Value {value} exceeds plausible human biological threshold ({max_bio}). Possible OCR error."
+                    "message": f"Value {value} exceeds plausible human biological threshold ({max_bio}). Possible OCR error.",
                 }
 
         # 2. Reference Range abnormality check
@@ -76,25 +80,25 @@ class BiologicalSanityChecker:
                 "confidence_tier": tier,
                 "is_abnormal": is_abnormal,
                 "sanity_status": "abnormal_range" if is_abnormal else "within_range",
-                "message": f"Value {value} is {'outside' if is_abnormal else 'within'} normal reference bounds ({ref_low} - {ref_high})."
+                "message": f"Value {value} is {'outside' if is_abnormal else 'within'} normal reference bounds ({ref_low} - {ref_high}).",
             }
         elif ref_low is not None:
-            is_abnormal = (value < ref_low)
+            is_abnormal = value < ref_low
             tier = "medium" if is_abnormal else "high"
             return {
                 "confidence_tier": tier,
                 "is_abnormal": is_abnormal,
                 "sanity_status": "abnormal_range" if is_abnormal else "within_range",
-                "message": f"Value {value} is {'below' if is_abnormal else 'above'} threshold ({ref_low})."
+                "message": f"Value {value} is {'below' if is_abnormal else 'above'} threshold ({ref_low}).",
             }
         elif ref_high is not None:
-            is_abnormal = (value > ref_high)
+            is_abnormal = value > ref_high
             tier = "medium" if is_abnormal else "high"
             return {
                 "confidence_tier": tier,
                 "is_abnormal": is_abnormal,
                 "sanity_status": "abnormal_range" if is_abnormal else "within_range",
-                "message": f"Value {value} is {'above' if is_abnormal else 'below'} threshold ({ref_high})."
+                "message": f"Value {value} is {'above' if is_abnormal else 'below'} threshold ({ref_high}).",
             }
         else:
             # Report missing reference range safely - DO NOT GUESS OR FABRICATE
@@ -103,5 +107,5 @@ class BiologicalSanityChecker:
                 "confidence_tier": "medium",
                 "is_abnormal": is_abnormal,
                 "sanity_status": "missing_reference_range",
-                "message": "Report does not specify reference interval; evaluated based on extracted flag without guessing."
+                "message": "Report does not specify reference interval; evaluated based on extracted flag without guessing.",
             }
