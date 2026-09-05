@@ -11,6 +11,8 @@ class WhatsAppService:
     def __init__(self):
         self.account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
         self.auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+        self.api_key = os.environ.get("TWILIO_API_KEY", "") or self.account_sid
+        self.api_secret = os.environ.get("TWILIO_API_SECRET", "") or self.auth_token
         self.from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
 
     def build_patient_message(
@@ -79,10 +81,10 @@ Access your full structured report and temporal trends at MedLens Portal."""
         formatted_phone = phone_number if phone_number.startswith("+") else f"+91{phone_number.replace('-', '').replace(' ', '')}"
         
         # If Twilio credentials present, attempt live dispatch
-        if self.account_sid and self.auth_token:
+        if self.api_key and self.api_secret:
             try:
                 from twilio.rest import Client
-                client = Client(self.account_sid, self.auth_token)
+                client = Client(self.api_key, self.api_secret)
                 msg = client.messages.create(
                     from_=self.from_number,
                     to=f"whatsapp:{formatted_phone}",

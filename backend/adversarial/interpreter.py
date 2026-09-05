@@ -69,8 +69,7 @@ class AdversarialInterpreter:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-
+                
                 prompt = f"""
                 Patient lab findings: {json.dumps(extracted_results, default=str)}
                 Temporal trend info: {json.dumps(temporal_analysis, default=str)}
@@ -84,11 +83,17 @@ class AdversarialInterpreter:
                 - Maximum 3 sentences.
                 - Output ONLY the summary text in the requested language ({language}).
                 """
-                resp = model.generate_content(prompt)
-                if resp.text and len(resp.text.strip()) > 10:
-                    return resp.text.strip()
+                
+                for model_name in ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-pro"]:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        resp = model.generate_content(prompt)
+                        if resp.text and len(resp.text.strip()) > 10:
+                            return resp.text.strip()
+                    except Exception:
+                        continue
             except Exception as e:
-                print(f"[AdversarialAI] Gemini call failed, using deterministic template: {e}")
+                print(f"[AdversarialAI] Gemini call fallback: {e}")
 
         # High quality localized deterministic template
         flagged = [r for r in extracted_results if r.get("is_abnormal")]
@@ -131,22 +136,25 @@ class AdversarialInterpreter:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
-
                 prompt = f"""
                 Given this non-diagnostic lab observation: "{primary_interpretation}"
                 List exactly 2 plausible, non-diagnostic alternative physiological or technical explanations for these variations (e.g., hydration levels, fasting duration, time of blood collection, recent strenuous exertion, or lab assay differences).
                 Format as JSON array of 2 short strings in language: {language}.
                 """
-                resp = model.generate_content(prompt)
-                text = resp.text.strip()
-                if text.startswith("```json"):
-                    text = text[7:]
-                if text.endswith("```"):
-                    text = text[:-3]
-                parsed = json.loads(text.strip())
-                if isinstance(parsed, list) and len(parsed) >= 2:
-                    return parsed[:2]
+                for model_name in ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro-latest", "gemini-pro"]:
+                    try:
+                        model = genai.GenerativeModel(model_name)
+                        resp = model.generate_content(prompt)
+                        text = resp.text.strip()
+                        if text.startswith("```json"):
+                            text = text[7:]
+                        if text.endswith("```"):
+                            text = text[:-3]
+                        parsed = json.loads(text.strip())
+                        if isinstance(parsed, list) and len(parsed) >= 2:
+                            return parsed[:2]
+                    except Exception:
+                        continue
             except Exception as e:
                 print(f"[AdversarialAI] Counter-prompt fallback: {e}")
 
