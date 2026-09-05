@@ -6,6 +6,7 @@ import hmac
 import hashlib
 import json
 import time
+import secrets
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from collections import defaultdict
@@ -48,8 +49,11 @@ from consent.consent_manager import ConsentManager
 from messaging.whatsapp_service import WhatsAppService
 from samples.sample_data import seed_sample_database
 
-# Authentication Secret
-MEDLENS_AUTH_SECRET = os.environ.get("MEDLENS_AUTH_SECRET", "medlens_hmac_secret_2026_clinical_provenance_key").encode()
+# Authentication Secret: Generate cryptographically secure ephemeral 256-bit secret if not configured in env
+raw_auth_secret = os.environ.get("MEDLENS_AUTH_SECRET")
+if not raw_auth_secret:
+    raw_auth_secret = secrets.token_hex(32)
+MEDLENS_AUTH_SECRET = raw_auth_secret.encode()
 
 def generate_session_token(patient_id: str) -> str:
     """Generates an HMAC-SHA256 session token tied to patient_id."""
@@ -563,8 +567,13 @@ def correct_test_result(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Optional auth ownership check (if token present)
-    if authorization and not verify_session_token(authorization, report.patient_id):
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is required for this operation. Please provide Authorization: Bearer <token> header."
+        )
+
+    if not verify_session_token(authorization, report.patient_id):
         raise HTTPException(status_code=403, detail="Forbidden: Authentication token does not own this report record.")
 
     test_result = db.query(TestResult).filter(TestResult.id == req.result_id, TestResult.report_id == report_id).first()
@@ -861,15 +870,20 @@ def delete_patient_data(
     db: Session = Depends(get_db)
 ):
     """
-    DPDP Act Right to Erasure with cryptographic token verification.
+    DPDP Act Right to Erasure with mandatory cryptographic token verification.
     Requires caller's Bearer token to match target patient_id.
     """
-    if authorization:
-        if not verify_session_token(authorization, patient_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Forbidden: Caller does not have authorization to delete this patient record."
-            )
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token is required for this operation. Please provide Authorization: Bearer <token> header."
+        )
+
+    if not verify_session_token(authorization, patient_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Caller does not have authorization to delete this patient record."
+        )
 
     return ConsentManager.delete_patient_data(db, patient_id)
 

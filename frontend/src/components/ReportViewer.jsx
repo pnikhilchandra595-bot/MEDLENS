@@ -1,5 +1,24 @@
+/**
+ * @file ReportViewer.jsx
+ * @description Honest Clinical Laboratory Document Viewer.
+ * Renders genuine uploaded document scans/images with interactive SVG bounding-box overlays
+ * drawn exclusively from verified backend coordinates.
+ * Strictly adheres to provenance honesty: ungrounded items render NO fake bounding boxes.
+ */
+
 import React, { useState } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, ShieldCheck, MapPinOff, FileText, Image as ImageIcon } from 'lucide-react';
+import PropTypes from 'prop-types';
+import { 
+  ZoomIn, 
+  ZoomOut, 
+  RotateCcw, 
+  ShieldCheck, 
+  MapPinOff, 
+  FileText, 
+  Image as ImageIcon,
+  CheckCircle2,
+  ExternalLink
+} from 'lucide-react';
 
 /**
  * @typedef {Object} BoundingBox
@@ -21,27 +40,19 @@ import { ZoomIn, ZoomOut, RotateCcw, ShieldCheck, MapPinOff, FileText, Image as 
  * @property {string} [ref_raw] - Raw reference text from report
  * @property {boolean} is_abnormal - Whether value is outside reference bounds
  * @property {boolean} [is_grounded] - Provenance grounding status
- * @property {string} [grounding_type] - Type of grounding (independent_ocr_line_match vs model_self_consistency)
- * @property {BoundingBox} [bbox] - Bounding box coordinates
- * @property {number} [bbox_x] - Fallback x coordinate
- * @property {number} [bbox_y] - Fallback y coordinate
- * @property {number} [bbox_w] - Fallback width
- * @property {number} [bbox_h] - Fallback height
+ * @property {string} [grounding_type] - Type of grounding
+ * @property {BoundingBox} [bbox] - Verified bounding box coordinates
  */
 
 /**
  * ReportViewer Component
- * Renders clinical lab documents with interactive SVG bounding-box overlays,
- * dual-mode switching between real image/scan view and structured report view,
- * full keyboard accessibility (WCAG AA), and SHA-256 tamper-evident verification.
- * 
  * @param {Object} props
- * @param {string} [props.fileUrl] - URL of the uploaded image/document
- * @param {TestResult[]} [props.results] - Extracted test results with bounding boxes
- * @param {string} [props.selectedResultId] - Currently active/focused result ID
+ * @param {string} [props.fileUrl] - URL of uploaded document (image or PDF)
+ * @param {TestResult[]} [props.results] - Extracted test results
+ * @param {string} [props.selectedResultId] - Focused test result ID
  * @param {function(string): void} [props.onSelectResult] - Selection callback
  * @param {string} [props.sha256Hash] - Cryptographic SHA-256 hash of original file
- * @param {string} [props.patientName] - Patient name for dynamic alt text
+ * @param {string} [props.patientName] - Patient name for contextual alt text
  */
 export default function ReportViewer({
   fileUrl,
@@ -52,22 +63,19 @@ export default function ReportViewer({
   patientName = 'Patient'
 }) {
   const [zoom, setZoom] = useState(1);
-  const [viewMode, setViewMode] = useState(fileUrl && (fileUrl.endsWith('.jpg') || fileUrl.endsWith('.png') || fileUrl.endsWith('.jpeg')) ? 'image' : 'structured');
   const [imageError, setImageError] = useState(false);
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.2, 2.5));
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.6));
   const handleResetZoom = () => setZoom(1);
 
-  // Group grounded and ungrounded counts
-  const groundedCount = results.filter(r => r.is_grounded !== false).length;
+  // Group verified grounded vs unconfirmed counts
+  const groundedCount = results.filter(r => r.bbox && r.is_grounded !== false).length;
   const unconfirmedCount = results.length - groundedCount;
 
-  // Resolve backend static upload URL
-  const resolvedFileUrl = fileUrl 
-    ? (fileUrl.startsWith('http') || fileUrl.startsWith('blob:') ? fileUrl : `http://localhost:8000${fileUrl}`)
-    : null;
-
+  // Use relative or absolute fileUrl without hardcoding localhost:8000
+  const resolvedFileUrl = fileUrl || null;
+  const isPdf = resolvedFileUrl && /\.pdf$/i.test(resolvedFileUrl);
   const isImageFile = resolvedFileUrl && !imageError && /\.(png|jpe?g|webp|gif)$/i.test(resolvedFileUrl);
 
   return (
@@ -93,36 +101,8 @@ export default function ReportViewer({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View Mode Toggle if image is available */}
-          {isImageFile && (
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 mr-1">
-              <button
-                type="button"
-                onClick={() => setViewMode('image')}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-                  viewMode === 'image' ? 'bg-emerald-600 text-slate-950 font-bold shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-                aria-pressed={viewMode === 'image'}
-              >
-                <ImageIcon className="w-3 h-3" aria-hidden="true" />
-                <span>Scan Image</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('structured')}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-                  viewMode === 'structured' ? 'bg-emerald-600 text-slate-950 font-bold shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-                aria-pressed={viewMode === 'structured'}
-              >
-                <FileText className="w-3 h-3" aria-hidden="true" />
-                <span>Structured</span>
-              </button>
-            </div>
-          )}
-
           {/* Grounding Counter Badges */}
-          <div className="hidden sm:flex items-center gap-2 mr-2 text-[11px]" aria-live="polite">
+          <div className="flex items-center gap-2 mr-2 text-[11px]" aria-live="polite">
             <span className="flex items-center gap-1 text-emerald-400">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
               {groundedCount} Grounded
@@ -135,39 +115,41 @@ export default function ReportViewer({
             )}
           </div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700" role="toolbar" aria-label="Zoom controls">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
-              title="Zoom Out"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-            <span className="px-1.5 text-[11px] font-mono text-slate-300 min-w-[40px] text-center" aria-live="polite">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
-              title="Zoom In"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="p-1 hover:text-white text-slate-400 border-l border-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
-              title="Reset Zoom"
-              aria-label="Reset Zoom"
-            >
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-            </button>
-          </div>
+          {/* Zoom Controls (Active for image mode) */}
+          {isImageFile && (
+            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700" role="toolbar" aria-label="Zoom controls">
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                title="Zoom Out"
+                aria-label="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+              <span className="px-1.5 text-[11px] font-mono text-slate-300 min-w-[40px] text-center" aria-live="polite">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                title="Zoom In"
+                aria-label="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="p-1 hover:text-white text-slate-400 border-l border-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                title="Reset Zoom"
+                aria-label="Reset Zoom"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -178,11 +160,11 @@ export default function ReportViewer({
         className="relative flex-1 overflow-auto p-4 bg-slate-950/80 flex items-start justify-center min-h-[450px] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
       >
         <div
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          style={{ transform: isImageFile ? `scale(${zoom})` : 'none', transformOrigin: 'top center' }}
           className="relative transition-transform duration-150 ease-out max-w-[680px] w-full select-none my-2"
         >
-          {/* Mode A: Real Scanned Document Image with Dynamic SVG Bounding Box Overlays */}
-          {viewMode === 'image' && isImageFile ? (
+          {/* View Mode 1: Real Scanned Document Image with Grounded SVG Bounding Box Overlays */}
+          {isImageFile ? (
             <div className="relative rounded-lg overflow-hidden shadow-2xl border border-slate-800 bg-black">
               <img
                 src={resolvedFileUrl}
@@ -196,17 +178,25 @@ export default function ReportViewer({
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 viewBox="0 0 1000 1000"
                 preserveAspectRatio="none"
-                aria-label="OCR Bounding Box Overlays"
+                aria-label="OCR Grounded Bounding Box Overlays"
               >
                 {results.map((res) => {
-                  const isSelected = selectedResultId === res.id;
-                  const bbox = res.bbox || {
-                    x: res.bbox_x ?? 0.08,
-                    y: res.bbox_y ?? 0.3,
-                    w: res.bbox_w ?? 0.84,
-                    h: res.bbox_h ?? 0.04
-                  };
+                  // Strict Honesty: If result has no real bounding box or is ungrounded, render NOTHING.
+                  if (!res.bbox || res.is_grounded === false) {
+                    return null;
+                  }
 
+                  const bbox = res.bbox;
+                  if (
+                    typeof bbox.x !== 'number' || 
+                    typeof bbox.y !== 'number' || 
+                    typeof bbox.w !== 'number' || 
+                    typeof bbox.h !== 'number'
+                  ) {
+                    return null;
+                  }
+
+                  const isSelected = selectedResultId === res.id;
                   const x = bbox.x * 1000;
                   const y = bbox.y * 1000;
                   const w = bbox.w * 1000;
@@ -225,7 +215,7 @@ export default function ReportViewer({
                       }}
                       tabIndex={0}
                       role="button"
-                      aria-label={`OCR Bounding Box for ${res.canonical_name || res.test_name}: ${res.value} ${res.unit || ''}. ${res.is_abnormal ? 'Abnormal' : 'Normal'}.`}
+                      aria-label={`Grounded Bounding Box for ${res.canonical_name || res.test_name}: ${res.value} ${res.unit || ''}. ${res.is_abnormal ? 'Abnormal' : 'Normal'}.`}
                     >
                       <rect
                         x={x}
@@ -266,107 +256,97 @@ export default function ReportViewer({
                 })}
               </svg>
             </div>
+          ) : isPdf ? (
+            /* View Mode 2: PDF Document Embed with Real File Stream */
+            <div className="rounded-lg overflow-hidden shadow-2xl border border-slate-800 bg-slate-900 min-h-[550px] flex flex-col">
+              <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  PDF Laboratory Document
+                </span>
+                <a
+                  href={resolvedFileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[11px] font-medium"
+                >
+                  <span>Open PDF in New Tab</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <iframe
+                src={resolvedFileUrl}
+                title={`Clinical Laboratory PDF Report for ${patientName}`}
+                className="w-full flex-1 min-h-[500px] border-none bg-slate-950"
+              />
+            </div>
           ) : (
-            /* Mode B: Structured High-Fidelity Pathology Document Layout */
-            <div className="bg-white text-slate-900 rounded-lg shadow-2xl p-6 min-h-[700px] border border-slate-200">
-              {/* Document Letterhead */}
-              <div className="border-b-2 border-slate-800 pb-3 mb-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">METROPOLIS HEALTHCARE LABS</h2>
-                    <p className="text-[11px] text-slate-500">Accredited Clinical Pathology & Diagnostic Services</p>
-                  </div>
-                  <div className="text-right text-[10px] text-slate-600">
-                    <p>NABL & ISO 15189 Certified</p>
-                    <p>Report ID: MET-2026-98124</p>
-                  </div>
+            /* View Mode 3: Honest Extracted Findings View (NO fake hospital/doctor letterheads) */
+            <div className="bg-slate-900/90 text-slate-100 rounded-xl shadow-xl p-5 border border-slate-800 space-y-4">
+              <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    Structured Diagnostic Extract
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Extracted investigation findings parsed with SHA-256 cryptographic verification.
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-200 text-xs text-slate-700">
-                  <div><span className="font-semibold text-slate-900">Patient Name:</span> {patientName} (42Y / M)</div>
-                  <div><span className="font-semibold text-slate-900">Ref By:</span> Dr. V. K. Malhotra, MD</div>
-                  <div><span className="font-semibold text-slate-900">Collection Date:</span> 01-Mar-2026 08:30 AM</div>
-                  <div><span className="font-semibold text-slate-900">Sample:</span> Serum / Whole Blood</div>
-                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  {results.length} Extracted Parameters
+                </span>
               </div>
 
-              {/* Accessible Test Table with Anchored Grounded Boxes */}
-              <table className="w-full text-left text-xs border-collapse" aria-label="Extracted Laboratory Tests Table">
-                <thead>
-                  <tr className="border-b-2 border-slate-300 text-slate-600 uppercase text-[10px] tracking-wider">
-                    <th scope="col" className="py-2 px-2.5">INVESTIGATION (TEST NAME)</th>
-                    <th scope="col" className="py-2 px-2.5">OBSERVED VALUE</th>
-                    <th scope="col" className="py-2 px-2.5">UNIT</th>
-                    <th scope="col" className="py-2 px-2.5">BIOLOGICAL REFERENCE</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-transparent text-slate-800">
-                  {results.map((res) => {
-                    const isSelected = selectedResultId === res.id;
-                    const isGrounded = res.is_grounded !== false;
+              <div className="space-y-2">
+                {results.map((res) => {
+                  const isSelected = selectedResultId === res.id;
+                  const isGrounded = res.bbox && res.is_grounded !== false;
 
-                    return (
-                      <tr
-                        key={res.id}
-                        onClick={() => onSelectResult && onSelectResult(res.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            onSelectResult && onSelectResult(res.id);
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        aria-pressed={isSelected}
-                        aria-label={`${res.test_name}, observed: ${res.value} ${res.unit || ''}, ${res.is_abnormal ? 'abnormal' : 'normal'}.`}
-                        className="relative cursor-pointer group focus:outline-none"
-                      >
-                        <td colSpan={4} className="p-0.5">
-                          <div
-                            className={`relative rounded-md px-2 py-2 flex items-center justify-between transition-all duration-150 ${
-                              isSelected
-                                ? 'border-2 border-emerald-500 bg-emerald-50/80 ring-4 ring-emerald-500/20 shadow-sm'
-                                : res.is_abnormal
-                                ? 'border border-rose-400/80 bg-rose-50/40 group-hover:bg-rose-50/70 group-focus:ring-2 group-focus:ring-rose-400'
-                                : isGrounded
-                                ? 'border border-emerald-400/60 bg-emerald-50/20 group-hover:bg-emerald-50/50 group-focus:ring-2 group-focus:ring-emerald-400'
-                                : 'border border-dashed border-slate-300 group-hover:bg-slate-50'
-                            }`}
-                          >
-                            {/* Floating Grounded Tag for selected row */}
-                            {isSelected && (
-                              <div className="absolute -top-3.5 left-2 z-20 px-2 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-bold tracking-wide whitespace-nowrap shadow flex items-center gap-1">
-                                <span>✓ Grounded OCR Box ({res.canonical_name || res.test_name})</span>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-12 w-full items-center text-xs">
-                              <div className="col-span-4 font-medium text-slate-900 truncate pr-2">
-                                {res.test_name}
-                              </div>
-                              <div className={`col-span-3 font-bold ${res.is_abnormal ? 'text-rose-600' : 'text-slate-900'}`}>
-                                {res.value} {res.is_abnormal ? '▲' : ''}
-                              </div>
-                              <div className="col-span-2 text-slate-500">
-                                {res.unit || '-'}
-                              </div>
-                              <div className="col-span-3 text-slate-500 text-right pr-1">
-                                {res.ref_low !== null && res.ref_high !== null
-                                  ? `${res.ref_low} - ${res.ref_high}`
-                                  : res.ref_raw || 'Not Specified'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <footer className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500">
-                <div>Verified by: Dr. S. K. Ramanathan, MD (Path)</div>
-                <div>*** End of Diagnostic Report ***</div>
-              </footer>
+                  return (
+                    <div
+                      key={res.id}
+                      onClick={() => onSelectResult && onSelectResult(res.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectResult && onSelectResult(res.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                      aria-label={`${res.test_name}: ${res.value} ${res.unit || ''}`}
+                      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/50'
+                          : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="font-semibold text-slate-200">
+                          {res.canonical_name || res.test_name}
+                        </div>
+                        <div className={`font-bold ${res.is_abnormal ? 'text-rose-400' : 'text-slate-100'}`}>
+                          {res.value} <span className="font-normal text-slate-400 text-[11px]">{res.unit}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                        <span>
+                          Reference: {res.ref_low !== null && res.ref_high !== null ? `${res.ref_low} – ${res.ref_high}` : res.ref_raw || 'Unspecified'}
+                        </span>
+                        <span>
+                          {isGrounded ? (
+                            <span className="text-emerald-400 font-medium">✓ Grounded</span>
+                          ) : (
+                            <span className="text-amber-400/80">Location unconfirmed</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -374,3 +354,12 @@ export default function ReportViewer({
     </section>
   );
 }
+
+ReportViewer.propTypes = {
+  fileUrl: PropTypes.string,
+  results: PropTypes.arrayOf(PropTypes.object),
+  selectedResultId: PropTypes.string,
+  onSelectResult: PropTypes.func,
+  sha256Hash: PropTypes.string,
+  patientName: PropTypes.string
+};

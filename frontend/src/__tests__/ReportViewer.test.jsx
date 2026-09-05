@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ReportViewer from '../components/ReportViewer';
@@ -26,8 +26,8 @@ describe('ReportViewer Component', () => {
       ref_low: 0.6,
       ref_high: 1.2,
       is_abnormal: false,
-      is_grounded: true,
-      bbox: { x: 0.1, y: 0.7, w: 0.8, h: 0.04 }
+      is_grounded: false,
+      bbox: null // Honestly ungrounded item
     }
   ];
 
@@ -41,10 +41,11 @@ describe('ReportViewer Component', () => {
     );
     expect(screen.getByText('Laboratory Document')).toBeInTheDocument();
     expect(screen.getByText(/SHA-256:/)).toBeInTheDocument();
-    expect(screen.getByText('2 Grounded')).toBeInTheDocument();
+    expect(screen.getByText('1 Grounded')).toBeInTheDocument();
+    expect(screen.getByText('1 Unconfirmed')).toBeInTheDocument();
   });
 
-  it('renders test findings in structured table mode', () => {
+  it('renders test findings in structured mode without fabricated hospital letterheads', () => {
     render(
       <ReportViewer
         results={mockResults}
@@ -52,12 +53,15 @@ describe('ReportViewer Component', () => {
         patientName="Arjun Sharma"
       />
     );
-    expect(screen.getByText('TSH')).toBeInTheDocument();
-    expect(screen.getByText('Serum Creatinine')).toBeInTheDocument();
+    expect(screen.getByText('Thyroid Stimulating Hormone')).toBeInTheDocument();
+    expect(screen.getByText('Creatinine')).toBeInTheDocument();
     expect(screen.getByText(/6.8/)).toBeInTheDocument();
+    // Verify no fabricated hospital/doctor text
+    expect(screen.queryByText(/METROPOLIS HEALTHCARE LABS/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Dr\. V\. K\. Malhotra/i)).not.toBeInTheDocument();
   });
 
-  it('triggers onSelectResult callback when a row or box is clicked', () => {
+  it('triggers onSelectResult callback when clicked', () => {
     const handleSelect = vi.fn();
     render(
       <ReportViewer
@@ -67,12 +71,12 @@ describe('ReportViewer Component', () => {
       />
     );
 
-    const tshElement = screen.getByText('TSH');
-    fireEvent.click(tshElement);
+    const elem = screen.getByText('Thyroid Stimulating Hormone');
+    fireEvent.click(elem);
     expect(handleSelect).toHaveBeenCalledWith('res-1');
   });
 
-  it('renders SVG bounding boxes when viewing image mode', () => {
+  it('renders SVG bounding box ONLY for grounded items, omitting ungrounded items', () => {
     render(
       <ReportViewer
         fileUrl="https://example.com/test_report.png"
@@ -84,5 +88,22 @@ describe('ReportViewer Component', () => {
     const img = screen.getByRole('img');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('alt', 'Clinical laboratory diagnostic report scan for Arjun Sharma');
+
+    // Only res-1 has a grounded bounding box; res-2 has null bbox and must NOT render an SVG box
+    expect(screen.getByLabelText(/Grounded Bounding Box for Thyroid Stimulating Hormone/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Grounded Bounding Box for Creatinine/i)).not.toBeInTheDocument();
+  });
+
+  it('renders iframe for PDF documents', () => {
+    render(
+      <ReportViewer
+        fileUrl="/uploads/sample_report.pdf"
+        results={mockResults}
+        patientName="Arjun Sharma"
+      />
+    );
+    const iframe = screen.getByTitle('Clinical Laboratory PDF Report for Arjun Sharma');
+    expect(iframe).toBeInTheDocument();
+    expect(iframe).toHaveAttribute('src', '/uploads/sample_report.pdf');
   });
 });

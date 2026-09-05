@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import json
 import unittest
@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from main import app, generate_session_token, verify_session_token
 from database import init_db, get_db, SessionLocal, Patient, Report, TestResult, AiSummaryCache, ResultAuditTrail
 from adversarial.interpreter import validate_and_sanitize_output
+from samples.sample_data import seed_sample_database
 
 class TestMedLensIntegrationAndSecurity(unittest.TestCase):
 
@@ -18,8 +19,9 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
     def setUpClass(cls):
         os.environ["MEDLENS_DB_PATH"] = os.path.join(os.path.dirname(__file__), "test_integration.db")
         init_db()
-        cls.client = TestClient(app)
         cls.db = SessionLocal()
+        seed_sample_database(cls.db)
+        cls.client = TestClient(app)
 
     @classmethod
     def tearDownClass(cls):
@@ -40,7 +42,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertIn("HMAC Session Tokens", data["security_features"])
 
     def test_02_magic_byte_validation_rejects_disguised_files(self):
-        # Fake file: text content with .pdf extension
+        # Disguised executable/plain text file with .pdf extension
         fake_bytes = b"This is plain text pretending to be a PDF."
         file_obj = ("fake.pdf", fake_bytes, "application/pdf")
         resp = self.client.post(
@@ -67,15 +69,14 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertTrue(verify_session_token(data["session_token"], data["patient_id"]))
 
     def test_04_bbox_coordinates_roundtrip_identically(self):
-        # Retrieve report details and assert bbox format
+        # Fetch patients from seeded database
         reports_resp = self.client.get("/api/patients")
         self.assertEqual(reports_resp.status_code, 200)
         patients = reports_resp.json()
         self.assertGreater(len(patients), 0)
         
-        # Check Arjun Sharma report
-        arjun = [p for p in patients if "Arjun" in p["name"]][0]
-        patient_reports = self.client.get(f"/api/patients/{arjun['id']}/reports").json()
+        target_patient = patients[0]
+        patient_reports = self.client.get(f"/api/patients/{target_patient['id']}/reports").json()
         self.assertGreater(len(patient_reports), 0)
         
         report_id = patient_reports[0]["id"]
@@ -83,31 +84,40 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertIn("results", report_details)
         
         for r in report_details["results"]:
-            self.assertIn("bbox", r)
-            bbox = r["bbox"]
-            self.assertIn("x", bbox)
-            self.assertIn("y", bbox)
-            self.assertIn("w", bbox)
-            self.assertIn("h", bbox)
-            self.assertTrue(0.0 <= bbox["x"] <= 1.0)
-            self.assertTrue(0.0 <= bbox["y"] <= 1.0)
+            if r.get("bbox"):
+                bbox = r["bbox"]
+                self.assertIn("x", bbox)
+                self.assertIn("y", bbox)
+                self.assertIn("w", bbox)
+                self.assertIn("h", bbox)
+                self.assertTrue(0.0 <= bbox["x"] <= 1.0)
+                self.assertTrue(0.0 <= bbox["y"] <= 1.0)
 
-    def test_05_hitl_correction_workflow(self):
-        # Create or fetch a test result
+    def test_05_hitl_correction_workflow_with_mandatory_auth(self):
+        # 1. Unauthenticated request must return 401
         patient = self.db.query(Patient).first()
         report = self.db.query(Report).filter(Report.patient_id == patient.id).first()
         test_res = report.test_results[0]
-        
-        original_val = test_res.value
-        corrected_val = 4.2
 
+        unauth_resp = self.client.post(
+            f"/api/reports/{report.id}/correct-result",
+            json={
+                "result_id": test_res.id,
+                "corrected_value": 5.5,
+                "correction_reason": "Missing token attempt"
+            }
+        )
+        self.assertEqual(unauth_resp.status_code, 401)
+        self.assertIn("Authentication token is required", unauth_resp.json()["detail"])
+
+        # 2. Authenticated valid request must succeed
         token = generate_session_token(patient.id)
         resp = self.client.post(
             f"/api/reports/{report.id}/correct-result",
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "result_id": test_res.id,
-                "corrected_value": corrected_val,
+                "corrected_value": 4.2,
                 "correction_reason": "Verified against pathologist physical slide"
             }
         )
@@ -141,14 +151,48 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         self.assertEqual(resp.status_code, 403)
         self.assertIn("Forbidden", resp.json()["detail"])
 
-    def test_07_multi_factor_search(self):
+    def test_07_delete_endpoint_strictly_enforces_authentication(self):
+        import uuid
+        temp_id = f"pat-delete-guard-{uuid.uuid4().hex[:6]}"
+        p = Patient(id=temp_id, name="Delete Guard Patient")
+        self.db.add(p)
+        self.db.commit()
+
+        # 1. No Authorization header -> MUST return 401 Unauthorized
+        unauth_resp = self.client.delete(f"/api/delete-my-data/{temp_id}")
+        self.assertEqual(unauth_resp.status_code, 401)
+        self.assertIn("Authentication token is required", unauth_resp.json()["detail"])
+        # Verify patient record was NOT deleted
+        self.assertIsNotNone(self.db.query(Patient).filter(Patient.id == temp_id).first())
+
+        # 2. Fraudulent Authorization token -> MUST return 403 Forbidden
+        attacker_token = generate_session_token("pat-attacker-999")
+        forbidden_resp = self.client.delete(
+            f"/api/delete-my-data/{temp_id}",
+            headers={"Authorization": f"Bearer {attacker_token}"}
+        )
+        self.assertEqual(forbidden_resp.status_code, 403)
+        self.assertIn("Forbidden", forbidden_resp.json()["detail"])
+        # Verify patient record still intact
+        self.assertIsNotNone(self.db.query(Patient).filter(Patient.id == temp_id).first())
+
+        # 3. Legitimate matching Authorization token -> MUST succeed with 200
+        legit_token = generate_session_token(temp_id)
+        success_resp = self.client.delete(
+            f"/api/delete-my-data/{temp_id}",
+            headers={"Authorization": f"Bearer {legit_token}"}
+        )
+        self.assertEqual(success_resp.status_code, 200)
+        # Verify patient record is now permanently deleted
+        self.assertIsNone(self.db.query(Patient).filter(Patient.id == temp_id).first())
+
+    def test_08_multi_factor_search(self):
         resp = self.client.get("/api/reports/search?query=TSH&is_abnormal=true")
         self.assertEqual(resp.status_code, 200)
         results = resp.json()
         self.assertIsInstance(results, list)
 
-    def test_08_parametrized_diagnostic_blocklist_generalization(self):
-        # Comprehensive test bank of 20+ adversarial diagnostic strings
+    def test_09_parametrized_diagnostic_blocklist_generalization(self):
         adversarial_test_cases = [
             "Patient is suffering from severe hypothyroidism.",
             "Test results clearly indicate Hashimoto's thyroiditis.",
