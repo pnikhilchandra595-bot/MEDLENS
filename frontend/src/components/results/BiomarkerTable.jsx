@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Search, Edit3, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Search, Edit3, CheckCircle2, AlertTriangle, HelpCircle, History } from 'lucide-react';
 import ProvenanceBadge from '../ProvenanceBadge';
 import GlossaryTooltip from '../GlossaryTooltip';
 
@@ -47,7 +47,7 @@ export default function BiomarkerTable({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search analyte or LOINC..."
-              className="bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-44 sm:w-56"
+              className="bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 w-44 sm:w-56"
             />
           </div>
 
@@ -56,7 +56,7 @@ export default function BiomarkerTable({
             type="button"
             onClick={() => setOnlyAbnormalFilter(!onlyAbnormalFilter)}
             aria-pressed={onlyAbnormalFilter}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
               onlyAbnormalFilter
                 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                 : 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200'
@@ -90,12 +90,25 @@ export default function BiomarkerTable({
               filteredResults.map((tr) => {
                 const isSelected = selectedResultId === tr.id;
                 const def = glossary[tr.canonical_name || tr.test_name];
+                const auditEntries = tr.audit_trail || tr.audit_history || [];
+                const hasAuditTrail = auditEntries.length > 0;
+
+                const handleKeyDown = (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectResult && onSelectResult(tr.id);
+                  }
+                };
 
                 return (
                   <tr
                     key={tr.id}
+                    tabIndex={0}
+                    role="row"
+                    aria-label={`${tr.canonical_name || tr.test_name} (${tr.test_name}), value ${tr.value} ${tr.unit}`}
                     onClick={() => onSelectResult && onSelectResult(tr.id)}
-                    className={`transition-colors cursor-pointer ${
+                    onKeyDown={handleKeyDown}
+                    className={`transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                       isSelected
                         ? 'bg-emerald-950/40 hover:bg-emerald-950/50'
                         : tr.is_abnormal
@@ -105,11 +118,20 @@ export default function BiomarkerTable({
                   >
                     {/* Name + LOINC */}
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-semibold text-slate-200">
                           {tr.canonical_name || tr.test_name}
                         </span>
                         {def && <GlossaryTooltip term={tr.canonical_name || tr.test_name} definition={def} />}
+                        {hasAuditTrail && (
+                          <span
+                            title={`Audited: ${auditEntries.length} verified edit(s)`}
+                            className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          >
+                            <History className="w-2.5 h-2.5 text-amber-400" aria-hidden="true" />
+                            <span>Audit Log</span>
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px] font-mono text-slate-500 mt-0.5 flex items-center gap-2">
                         <span>LOINC: {tr.loinc_code || 'Unmapped'}</span>
@@ -165,7 +187,7 @@ export default function BiomarkerTable({
                           onStartCorrection(tr);
                         }}
                         aria-label={`Correct value for ${tr.test_name}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                       >
                         <Edit3 className="w-3 h-3 text-amber-400" aria-hidden="true" />
                         <span>Correct</span>

@@ -30,13 +30,9 @@ jobs:
         run: |
           ruff check backend/
 
-      - name: Run MedLens Core Unit Tests
+      - name: Run Test Suite with Pytest Coverage
         run: |
-          python backend/test_medlens.py
-
-      - name: Run End-to-End Integration & Security Tests
-        run: |
-          python backend/test_integration_pipeline.py
+          pytest --cov=backend --cov-report=term --cov-report=xml backend/test_medlens.py backend/test_integration_pipeline.py
 
   frontend-quality-and-build:
     name: Frontend Linting, Unit Tests & Production Build

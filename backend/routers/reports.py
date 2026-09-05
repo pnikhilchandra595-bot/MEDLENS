@@ -275,6 +275,25 @@ def get_report_details(
                         }
                     )
 
+        # Query audit trails for this test result
+        audit_records = (
+            db.query(ResultAuditTrail)
+            .filter(ResultAuditTrail.result_id == tr.id)
+            .order_by(ResultAuditTrail.created_at.desc())
+            .all()
+        )
+        audit_trail = [
+            {
+                "id": a.id,
+                "previous_value": a.previous_value,
+                "corrected_value": a.corrected_value,
+                "reason": a.reason,
+                "corrected_by": a.corrected_by,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            }
+            for a in audit_records
+        ]
+
         results_list.append(
             {
                 "id": tr.id,
@@ -301,6 +320,7 @@ def get_report_details(
                 "grounding_type": getattr(tr, "grounding_type", "independent_ocr_line_match"),
                 "source": tr.source,
                 "history": history_points,
+                "audit_trail": audit_trail,
             }
         )
 
@@ -401,6 +421,7 @@ def get_report_details(
 
 @router.post("/api/reports/{report_id}/correct-result", response_model=Dict[str, Any])
 def correct_test_result(
+    request: Request,
     report_id: str,
     req: CorrectionRequest,
     authorization: Optional[str] = Header(None, description="Bearer HMAC session token"),
@@ -414,6 +435,7 @@ def correct_test_result(
     Security: Requires caller's Bearer HMAC token to match the owning patient ID.
 
     Args:
+        request: FastAPI HTTP request object for rate limiting.
         report_id: Unique report identifier.
         req: Correction payload with result ID, new value, and reason.
         authorization: Bearer session token header.
@@ -425,6 +447,9 @@ def correct_test_result(
     Raises:
         HTTPException: HTTP 401 if token is missing, HTTP 403 if unauthorized, HTTP 404 if not found.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(client_ip, max_requests=30, window_seconds=60)
+
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -478,6 +503,14 @@ def correct_test_result(
         "corrected_value": test_result.value,
         "is_abnormal": test_result.is_abnormal,
         "source": test_result.source,
+        "audit_trail": {
+            "id": audit.id,
+            "previous_value": audit.previous_value,
+            "corrected_value": audit.corrected_value,
+            "reason": audit.reason,
+            "corrected_by": audit.corrected_by,
+            "created_at": audit.created_at.isoformat() if audit.created_at else None,
+        },
         "message": "Result updated with 'Human-corrected' provenance tag and audit trail.",
     }
 

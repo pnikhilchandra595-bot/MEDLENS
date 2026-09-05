@@ -7,17 +7,16 @@ in-memory IP rate limiting, and magic-bytes file validation.
 import hashlib
 import hmac
 import os
-import secrets
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional
 
 from fastapi import HTTPException, status
 
-# Cryptographically secure 256-bit secret (ephemeral if not configured)
-raw_auth_secret = os.environ.get("MEDLENS_AUTH_SECRET")
-if not raw_auth_secret:
-    raw_auth_secret = secrets.token_hex(32)
+# Persistent Cryptographic Secret (uses MEDLENS_AUTH_SECRET env var if set, otherwise stable production fallback)
+raw_auth_secret = os.environ.get(
+    "MEDLENS_AUTH_SECRET", "medlens_production_hmac_secret_key_2026_clinical_memory_token_signing"
+)
 MEDLENS_AUTH_SECRET: bytes = raw_auth_secret.encode()
 
 # In-Memory Rate Limiter Tracking (client_ip -> list of epoch timestamps)

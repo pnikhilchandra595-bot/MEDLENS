@@ -116,6 +116,17 @@ export const MOCK_REPORTS = {
           { "date": "5th May 2024", "value": 10.8, "is_abnormal": true, "is_borderline": false, "ref_raw": "13.0 - 17.0 g/dL" },
           { "date": "1st Apr 2024", "value": 10.1, "is_abnormal": true, "is_borderline": false, "ref_raw": "13.0 - 17.0 g/dL" },
           { "date": "14th Sep 2023", "value": 16.5, "is_abnormal": false, "is_borderline": false, "ref_raw": "13.0 - 17.0 g/dL" }
+        ],
+        "audit_trail": [
+          {
+            "id": "aud-v-01",
+            "old_value": 15.8,
+            "new_value": 16.3,
+            "corrected_value": 16.3,
+            "reason": "Calibration verified against primary Coulter hematology analyzer",
+            "changed_at": "2026-08-25T09:42:00Z",
+            "changed_by": "Dr. R. Chandra (Pathologist)"
+          }
         ]
       },
       {
@@ -182,15 +193,26 @@ export const MOCK_REPORTS = {
         "is_abnormal": false,
         "is_borderline": false,
         "confidence_tier": "high",
-        "source": "Extracted from report",
+        "source": "Human-corrected",
         "is_grounded": true,
         "bbox": { "x": 0.08, "y": 0.37, "w": 0.84, "h": 0.038 },
         "history": [
           { "date": "18th Feb '25", "value": 210.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
-          { "date": "6th Aug '25", "value": 235.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
-          { "date": "10th Oct '25", "value": 228.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
+          { "date": "6th Aug '25", "value": 225.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
+          { "date": "10th Oct '25", "value": 235.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
           { "date": "9th Apr '26", "value": 255.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" },
           { "date": "25th Aug '26", "value": 240.0, "is_abnormal": false, "is_borderline": false, "ref_raw": "150 - 450" }
+        ],
+        "audit_trail": [
+          {
+            "id": "aud-v-04",
+            "old_value": 220.0,
+            "new_value": 240.0,
+            "corrected_value": 240.0,
+            "reason": "Corrected per automated impedance chamber slide recount",
+            "changed_at": "2026-08-25T11:05:00Z",
+            "changed_by": "Senior Lab Technologist"
+          }
         ]
       },
       {

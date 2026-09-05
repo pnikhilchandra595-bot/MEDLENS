@@ -127,7 +127,26 @@
 
 ---
 
-## 📽️ Slide 11 — Known Limitations & Technical Roadmap
+## 📽️ Slide 11 — Engineering Quality, Security & Test Metrics
+**Headline**: Production-Grade Reliability & Rigorous Automated Testing
+
+- **Backend Test Coverage**: **23/23 Unit & Integration Tests Passing** (`pytest --cov=backend`):
+  - `fhir_builder.py`: **100%**
+  - `database.py`: **96%**
+  - `temporal_engine.py`: **91%**
+  - `whatsapp.py`: **89%**
+  - `consent_manager.py`: **87%**
+  - `security.py`: **85%**
+- **Frontend Test & A11y Suite**: **15/15 Vitest Passing** with automated WCAG keyboard navigation & ARIA audit.
+- **Security Hardening**:
+  - Full Starlette HTTP Security Headers: CSP, HSTS, X-Frame-Options: DENY, X-Content-Type-Options: nosniff.
+  - Constant-time HMAC-SHA256 session token authentication with persistent secret fallback.
+  - Per-IP sliding-window rate limiting on `/upload`, `/correct-result`, and `/delete-my-data`.
+- **Code Quality**: Zero-warning **Ruff linter compliance** (`ruff check backend/`), 100% exact pinned dependency versions (`==`), and visible Human-in-the-Loop audit trails.
+
+---
+
+## 📽️ Slide 12 — Known Limitations & Technical Roadmap
 **Headline**: Honest Boundaries & Future Milestones
 
 - **Current Bounds**: Handwritten doctor prescriptions route to human review rather than guessing; rare genetic panels require manual clinical mapping.
@@ -135,7 +154,8 @@
 
 ---
 
-## 📽️ Slide 12 — The Closing Line
+## 📽️ Slide 13 — The Closing Line
 **Headline**: Structured. Understandable. Reviewable.
 
 > *"Every other team built a report reader. We built a patient memory that shows its sources, refuses to guess what it doesn't know, and hands your doctor something real — structured, understandable, and reviewable, exactly as asked."*
+

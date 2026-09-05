@@ -12,6 +12,9 @@ venv/
 .env
 *.db
 *.sqlite3
+.coverage
+coverage.xml
+.pytest_cache/
 backend/storage/uploads/
 !backend/storage/uploads/.gitkeep
 

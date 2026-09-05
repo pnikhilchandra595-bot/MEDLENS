@@ -47,6 +47,16 @@ from routers import whatsapp as whatsapp_router
 from samples.sample_data import seed_sample_database
 from security import check_rate_limit, generate_session_token, validate_magic_bytes, verify_session_token
 from sqlalchemy.orm import Session
+from starlette.requests import Request
+from starlette.responses import Response
+
+__all__ = [
+    "app",
+    "generate_session_token",
+    "verify_session_token",
+    "check_rate_limit",
+    "validate_magic_bytes",
+]
 
 # Configure Root Logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -73,6 +83,26 @@ app = FastAPI(
     version="1.3.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    """Injects industry-standard HTTP security headers onto every API and static response."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self' https: data: 'unsafe-inline'; "
+        "img-src 'self' data: https: blob:; "
+        "font-src 'self' https: data:; "
+        "frame-ancestors 'none';"
+    )
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
 
 # CORS: Explicit allowlist
 ALLOWED_ORIGINS = [

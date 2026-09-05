@@ -9,9 +9,9 @@ from typing import Any, Dict, Optional
 
 from consent.consent_manager import ConsentManager
 from database import get_db
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
-from security import verify_session_token
+from security import check_rate_limit, verify_session_token
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,7 @@ def check_consent(patient_id: str, db: Session = Depends(get_db)) -> Dict[str, A
 
 @router.delete("/api/delete-my-data/{patient_id}", response_model=Dict[str, Any])
 def delete_patient_data(
+    request: Request,
     patient_id: str,
     authorization: Optional[str] = Header(None, description="Bearer HMAC session token"),
     db: Session = Depends(get_db),
@@ -85,6 +86,9 @@ def delete_patient_data(
     Raises:
         HTTPException: HTTP 401 if token is missing, HTTP 403 if token is invalid or unauthorized.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    check_rate_limit(client_ip, max_requests=10, window_seconds=60)
+
     if not authorization:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
