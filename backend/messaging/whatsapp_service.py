@@ -14,6 +14,7 @@ class WhatsAppService:
         self.api_key = os.environ.get("TWILIO_API_KEY", "") or self.account_sid
         self.api_secret = os.environ.get("TWILIO_API_SECRET", "") or self.auth_token
         self.from_number = os.environ.get("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+        self.content_sid = os.environ.get("TWILIO_CONTENT_SID", "")
 
     def build_patient_message(
         self,
@@ -81,15 +82,36 @@ Access your full structured report and temporal trends at MedLens Portal."""
         formatted_phone = phone_number if phone_number.startswith("+") else f"+91{phone_number.replace('-', '').replace(' ', '')}"
         
         # If Twilio credentials present, attempt live dispatch
-        if self.api_key and self.api_secret:
+        if (self.account_sid and self.auth_token) or (self.api_key and self.api_secret):
             try:
                 from twilio.rest import Client
-                client = Client(self.api_key, self.api_secret)
-                msg = client.messages.create(
-                    from_=self.from_number,
-                    to=f"whatsapp:{formatted_phone}",
-                    body=message_body
-                )
+                user = self.api_key or self.account_sid
+                password = self.api_secret or self.auth_token
+                client = Client(user, password, self.account_sid)
+                
+                # Attempt sending with content_sid if configured, or direct body
+                try:
+                    if self.content_sid:
+                        msg = client.messages.create(
+                            from_=self.from_number,
+                            to=f"whatsapp:{formatted_phone}",
+                            content_sid=self.content_sid
+                        )
+                    else:
+                        msg = client.messages.create(
+                            from_=self.from_number,
+                            to=f"whatsapp:{formatted_phone}",
+                            body=message_body
+                        )
+                except Exception as template_err:
+                    # Fallback to direct body if template failed
+                    print(f"[WhatsAppService] Primary send failed ({template_err}), attempting direct body dispatch...")
+                    msg = client.messages.create(
+                        from_=self.from_number,
+                        to=f"whatsapp:{formatted_phone}",
+                        body=message_body
+                    )
+
                 return {
                     "status": "sent",
                     "provider": "twilio",
@@ -108,3 +130,4 @@ Access your full structured report and temporal trends at MedLens Portal."""
             "body": message_body,
             "message": "Message successfully prepared and queued for delivery."
         }
+

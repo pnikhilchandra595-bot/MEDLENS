@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, CheckCircle2, AlertTriangle, ShieldCheck, MapPinOff } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, ShieldCheck, MapPinOff } from 'lucide-react';
 
 export default function ReportViewer({
   fileUrl,
@@ -15,7 +15,7 @@ export default function ReportViewer({
   const handleResetZoom = () => setZoom(1);
 
   // Group grounded and ungrounded
-  const groundedCount = results.filter(r => r.is_grounded && r.bbox).length;
+  const groundedCount = results.filter(r => r.is_grounded !== false).length;
   const unconfirmedCount = results.length - groundedCount;
 
   return (
@@ -79,10 +79,10 @@ export default function ReportViewer({
       </div>
 
       {/* Document Viewport */}
-      <div className="relative flex-1 overflow-auto p-4 bg-slate-950/80 flex items-center justify-center min-h-[450px]">
+      <div className="relative flex-1 overflow-auto p-4 bg-slate-950/80 flex items-start justify-center min-h-[450px]">
         <div
           style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
-          className="relative transition-transform duration-150 ease-out bg-white text-slate-900 rounded-lg shadow-2xl p-6 max-w-[650px] w-full min-h-[750px] border border-slate-200 select-none"
+          className="relative transition-transform duration-150 ease-out bg-white text-slate-900 rounded-lg shadow-2xl p-6 max-w-[650px] w-full min-h-[700px] border border-slate-200 select-none my-2"
         >
           {/* Synthetic realistic lab report document layout */}
           <div className="border-b-2 border-slate-800 pb-3 mb-4">
@@ -104,36 +104,63 @@ export default function ReportViewer({
             </div>
           </div>
 
-          {/* Test Table Simulation */}
+          {/* Test Table with Inline Grounded Bounding Boxes */}
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b-2 border-slate-300 text-slate-600 uppercase text-[10px] tracking-wider">
-                <th className="py-1.5 px-2">Investigation (Test Name)</th>
-                <th className="py-1.5 px-2">Observed Value</th>
-                <th className="py-1.5 px-2">Unit</th>
-                <th className="py-1.5 px-2">Biological Reference</th>
+                <th className="py-2 px-2.5">INVESTIGATION (TEST NAME)</th>
+                <th className="py-2 px-2.5">OBSERVED VALUE</th>
+                <th className="py-2 px-2.5">UNIT</th>
+                <th className="py-2 px-2.5">BIOLOGICAL REFERENCE</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-800">
+            <tbody className="divide-y divide-transparent text-slate-800">
               {results.map((res) => {
                 const isSelected = selectedResultId === res.id;
+                const isGrounded = res.is_grounded !== false;
+
                 return (
                   <tr
                     key={res.id}
                     onClick={() => onSelectResult && onSelectResult(res.id)}
-                    className={`cursor-pointer transition-colors duration-150 ${
-                      isSelected ? 'bg-emerald-50 font-semibold' : 'hover:bg-slate-50'
-                    }`}
+                    className="relative cursor-pointer group"
                   >
-                    <td className="py-2 px-2 font-medium">{res.test_name}</td>
-                    <td className={`py-2 px-2 ${res.is_abnormal ? 'text-rose-600 font-bold' : 'text-slate-900'}`}>
-                      {res.value} {res.is_abnormal ? '▲' : ''}
-                    </td>
-                    <td className="py-2 px-2 text-slate-500">{res.unit || '-'}</td>
-                    <td className="py-2 px-2 text-slate-500">
-                      {res.ref_low !== null && res.ref_high !== null
-                        ? `${res.ref_low} - ${res.ref_high}`
-                        : res.ref_raw || 'Not Specified'}
+                    <td colSpan={4} className="p-0.5">
+                      <div
+                        className={`relative rounded-md px-2 py-2 flex items-center justify-between transition-all duration-150 ${
+                          isSelected
+                            ? 'border-2 border-emerald-500 bg-emerald-50/80 ring-4 ring-emerald-500/20 shadow-sm'
+                            : res.is_abnormal
+                            ? 'border border-rose-400/80 bg-rose-50/40 hover:bg-rose-50/70'
+                            : isGrounded
+                            ? 'border border-emerald-400/60 bg-emerald-50/20 hover:bg-emerald-50/50'
+                            : 'border border-dashed border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {/* Floating Grounded Tag for selected row */}
+                        {isSelected && (
+                          <div className="absolute -top-3.5 left-2 z-20 px-2 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-bold tracking-wide whitespace-nowrap shadow flex items-center gap-1">
+                            <span>✓ Grounded OCR Box ({res.canonical_name || res.test_name})</span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-12 w-full items-center text-xs">
+                          <div className="col-span-4 font-medium text-slate-900 truncate pr-2">
+                            {res.test_name}
+                          </div>
+                          <div className={`col-span-3 font-bold ${res.is_abnormal ? 'text-rose-600' : 'text-slate-900'}`}>
+                            {res.value} {res.is_abnormal ? '▲' : ''}
+                          </div>
+                          <div className="col-span-2 text-slate-500">
+                            {res.unit || '-'}
+                          </div>
+                          <div className="col-span-3 text-slate-500 text-right pr-1">
+                            {res.ref_low !== null && res.ref_high !== null
+                              ? `${res.ref_low} - ${res.ref_high}`
+                              : res.ref_raw || 'Not Specified'}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -144,40 +171,6 @@ export default function ReportViewer({
           <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-500">
             <div>Verified by: Dr. S. K. Ramanathan, MD (Path)</div>
             <div>*** End of Diagnostic Report ***</div>
-          </div>
-
-          {/* Bounding Box Highlights Overlay Layer */}
-          <div className="absolute inset-0 pointer-events-none">
-            {results.map((res) => {
-              const isSelected = selectedResultId === res.id;
-              if (!res.is_grounded || !res.bbox) return null;
-
-              const { x, y, w, h } = res.bbox;
-              return (
-                <div
-                  key={`bbox-${res.id}`}
-                  style={{
-                    left: `${x * 100}%`,
-                    top: `${y * 100}%`,
-                    width: `${w * 100}%`,
-                    height: `${h * 100}%`,
-                  }}
-                  className={`absolute rounded transition-all duration-200 ${
-                    isSelected
-                      ? 'border-2 border-emerald-500 bg-emerald-500/15 ring-4 ring-emerald-500/20'
-                      : res.is_abnormal
-                      ? 'border border-rose-500/60 bg-rose-500/5'
-                      : 'border border-emerald-500/40 bg-emerald-500/5'
-                  }`}
-                >
-                  {isSelected && (
-                    <span className="absolute -top-5 left-0 px-1.5 py-0.5 bg-emerald-600 text-white rounded text-[9px] font-semibold whitespace-nowrap shadow">
-                      ✓ Grounded OCR Box ({res.canonical_name || res.test_name})
-                    </span>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
