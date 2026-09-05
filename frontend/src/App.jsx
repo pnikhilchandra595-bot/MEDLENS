@@ -4,11 +4,12 @@ import UploadPage from './pages/UploadPage';
 import ResultsPage from './pages/ResultsPage';
 import TimelinePage from './pages/TimelinePage';
 import SettingsPage from './pages/SettingsPage';
+import PitchDeckPage from './pages/PitchDeckPage';
 import ClinicianPdfTemplate from './components/ClinicianPdfTemplate';
 import { fetchPatients, fetchPatientReports, fetchReportDetails, fetchGlossary, reseedDatabase } from './api/client';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('results'); // 'upload' | 'results' | 'timeline' | 'settings' | 'pdf'
+  const [activeTab, setActiveTab] = useState('results'); // 'upload' | 'results' | 'timeline' | 'settings' | 'pitch' | 'pdf'
   const [language, setLanguage] = useState('en'); // 'en' | 'hi' | 'te'
   const [patients, setPatients] = useState([]);
   const [selectedPatientId, setSelectedPatientId] = useState('pat-arjun-sharma');
@@ -38,7 +39,6 @@ export default function App() {
       fetchPatientReports(selectedPatientId)
         .then((reports) => {
           if (reports && reports.length > 0) {
-            // Select latest report by default
             const latest = reports[reports.length - 1];
             setSelectedReportId(latest.id);
           } else {
@@ -67,7 +67,6 @@ export default function App() {
     setSelectedPatientId(patientId);
     setSelectedReportId(reportId);
     setActiveTab('results');
-    // Refresh patients list
     fetchPatients().then(setPatients);
   };
 
@@ -167,6 +166,10 @@ export default function App() {
             onDataDeleted={handleReseed}
           />
         )}
+
+        {activeTab === 'pitch' && (
+          <PitchDeckPage />
+        )}
       </main>
 
       {/* Footer */}
@@ -178,7 +181,7 @@ export default function App() {
           <div className="flex items-center gap-4 text-slate-400">
             <span>HL7 FHIR R4 Ready</span>
             <span>•</span>
-            <span>LOINC Standardized</span>
+            <span>ABDM India NRCeS Ready</span>
             <span>•</span>
             <span>DPDP Act 2023 Compliant</span>
           </div>
