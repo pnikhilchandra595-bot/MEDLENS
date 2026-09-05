@@ -2,6 +2,21 @@ import os
 import uuid
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+
+# Load .env file into os.environ if present
+env_paths = [
+    os.path.join(os.path.dirname(__file__), ".env"),
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+]
+for ep in env_paths:
+    if os.path.exists(ep):
+        with open(ep, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    os.environ[k.strip()] = v.strip()
+
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
