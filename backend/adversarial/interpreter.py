@@ -1,12 +1,61 @@
 import os
 import json
-from typing import List, Dict, Any, Optional
+import re
+from typing import List, Dict, Any, Optional, Tuple
+
+# Comprehensive clinical condition & diagnostic phrase blocklist
+DIAGNOSTIC_BLOCKLIST = [
+    "hypothyroidism", "hyperthyroidism", "thyroiditis", "hashimoto", "graves",
+    "diabetes", "diabetic", "prediabetes", "insulin resistance",
+    "anemia", "anemic", "iron deficiency", "thalassemia",
+    "dyslipidemia", "hyperlipidemia", "hypercholesterolemia", "atherosclerosis",
+    "nephropathy", "chronic kidney disease", "ckd", "renal failure", "nephritis",
+    "hepatitis", "fatty liver", "cirrhosis", "liver failure",
+    "hypertension", "hypertensive", "hypotension", "cardiovascular disease",
+    "leukemia", "lymphoma", "malignancy", "cancer", "tumor", "carcinoma",
+    "infection", "sepsis", "inflammatory bowel disease", "rheumatoid",
+    "deficiency disease", "metabolic syndrome", "polycystic ovary", "pcos"
+]
+
+DIAGNOSTIC_REGEX_PATTERNS = [
+    re.compile(r"\bdiagnos(is|ed|ing|e)\b", re.IGNORECASE),
+    re.compile(r"\bsuffer(ing|s)?\s+from\b", re.IGNORECASE),
+    re.compile(r"\bhas\s+[a-z\s]+disease\b", re.IGNORECASE),
+    re.compile(r"\bpatient\s+(is|has)\s+[a-z\s]*(diabetic|anemic|hypothyroid)\b", re.IGNORECASE),
+    re.compile(r"\bindicates\s+(a\s+case\s+of|the\s+presence\s+of)\b", re.IGNORECASE)
+]
+
+def validate_and_sanitize_output(text: str) -> Tuple[bool, Optional[str]]:
+    """
+    Strict output-side safety validator.
+    Inspects generated LLM text for any diagnostic terms or condition names.
+    Returns (True, None) if safe, or (False, matched_violation) if non-diagnostic safety fails.
+    """
+    if not text:
+        return True, None
+
+    lower_text = text.lower()
+    
+    # Check keyword blocklist
+    for term in DIAGNOSTIC_BLOCKLIST:
+        # Match whole words to avoid sub-word false positives
+        if re.search(rf"\b{re.escape(term)}\b", lower_text):
+            return False, f"Prohibited condition name detected: '{term}'"
+
+    # Check regex pattern blocklist
+    for pat in DIAGNOSTIC_REGEX_PATTERNS:
+        match = pat.search(text)
+        if match:
+            return False, f"Prohibited diagnostic phrasing detected: '{match.group(0)}'"
+
+    return True, None
+
 
 class AdversarialInterpreter:
     """
     Adversarial AI Layer & Clinical Safety Engine.
     Enforces non-diagnostic descriptive phrasing, gated counter-explanations,
-    deterministic lab flag counting, and multilingual localization.
+    deterministic lab flag counting, output-side safety blocklists, and multilingual localization.
     """
 
     def __init__(self):
@@ -89,7 +138,14 @@ class AdversarialInterpreter:
                         model = genai.GenerativeModel(model_name)
                         resp = model.generate_content(prompt)
                         if resp.text and len(resp.text.strip()) > 10:
-                            return resp.text.strip()
+                            candidate_text = resp.text.strip()
+                            # Apply strict output-side safety blocklist validation
+                            is_safe, violation_reason = validate_and_sanitize_output(candidate_text)
+                            if is_safe:
+                                return candidate_text
+                            else:
+                                print(f"[AdversarialSafety] Safety violation intercepted: {violation_reason}. Discarding LLM output and reverting to deterministic template.")
+                                break
                     except Exception:
                         continue
             except Exception as e:

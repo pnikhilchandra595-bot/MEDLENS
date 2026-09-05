@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 from sqlalchemy import (
-    create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey
+    create_engine, Column, String, Integer, Float, Boolean, DateTime, Text, ForeignKey, text as db_text
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -41,6 +41,7 @@ class Report(Base):
     file_path = Column(String, nullable=True)
     file_name = Column(String, nullable=True)
     file_url = Column(String, nullable=True)
+    extraction_mode = Column(String, default="gemini_live") # "gemini_live" | "demo_fallback"
     created_at = Column(DateTime, default=get_utc_now)
 
     patient = relationship("Patient", back_populates="reports")
@@ -71,6 +72,7 @@ class TestResult(Base):
     bbox_w = Column(Float, nullable=True)
     bbox_h = Column(Float, nullable=True)
     is_grounded = Column(Boolean, default=False)
+    grounding_type = Column(String, default="independent_ocr_line_match") # "independent_ocr_line_match" | "model_self_consistency"
     # Provenance tag: "Patient-reported" | "Extracted from report" | "AI-generated"
     source = Column(String, default="Extracted from report")
     created_at = Column(DateTime, default=get_utc_now)
@@ -117,6 +119,18 @@ class ReportHash(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Automatic column additions for existing SQLite databases
+    with engine.connect() as conn:
+        try:
+            conn.execute(db_text("ALTER TABLE reports ADD COLUMN extraction_mode VARCHAR DEFAULT 'gemini_live'"))
+            conn.commit()
+        except Exception:
+            pass
+        try:
+            conn.execute(db_text("ALTER TABLE test_results ADD COLUMN grounding_type VARCHAR DEFAULT 'independent_ocr_line_match'"))
+            conn.commit()
+        except Exception:
+            pass
 
 def get_db():
     db = SessionLocal()

@@ -150,6 +150,19 @@ export default function ResultsPage({
         </div>
       </div>
 
+      {/* Demo Fallback Alert Banner */}
+      {(report_metadata?.extraction_mode === 'demo_fallback' || reportData?.extraction_warning) && (
+        <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs text-amber-200 flex items-start gap-3 shadow-lg animate-in fade-in">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-bold text-amber-300">⚠️ Demo Fallback Active</span>
+            <p className="mt-0.5 text-slate-300 leading-relaxed">
+              Live Gemini Vision extraction was unavailable or timed out. Displaying calibrated baseline reference panel for testing.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Inconsistency Detection Alert Banner (Phase 1.5) */}
       {inconsistencies.length > 0 && (
         <div className="space-y-2">

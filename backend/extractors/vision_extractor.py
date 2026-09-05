@@ -66,22 +66,65 @@ def check_patient_match(extracted_name: str, active_profile_name: str) -> Dict[s
         "message": "Patient name verified."
     }
 
+def normalize_numeric_string(s: str) -> str:
+    """
+    Normalizes numeric strings for robust OCR matching:
+    - Normalizes trailing zeros: '6.80' -> '6.8', '195.0' -> '195'
+    - Strips commas, redundant spaces, and scientific notations where appropriate
+    """
+    if not s:
+        return ""
+    clean = str(s).replace(",", "").strip()
+    try:
+        val = float(clean)
+        # Format as integer if whole number, else standard float with stripped trailing zeros
+        if val.is_integer():
+            return str(int(val))
+        return f"{val:.4f}".rstrip('0').rstrip('.')
+    except ValueError:
+        return clean
+
+def extract_independent_pdf_lines(file_bytes: bytes) -> List[Dict[str, Any]]:
+    """
+    Independent Pass 2: Extracts layout text lines directly from document bytes.
+    Does not rely on LLM self-reporting.
+    """
+    ocr_lines = []
+    try:
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+        for page_idx, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            lines = [l.strip() for l in text.split("\n") if l.strip()]
+            total = max(len(lines), 1)
+            for i, line in enumerate(lines):
+                # Approximate normalized bounding box based on line sequence
+                y_pos = 0.15 + (0.75 * (i / total))
+                ocr_lines.append({
+                    "text": line,
+                    "bbox": {"x": 0.08, "y": round(y_pos, 3), "w": 0.84, "h": 0.035},
+                    "source": "independent_pdf_text_layer"
+                })
+    except Exception:
+        pass
+    return ocr_lines
+
 def ground_bbox(
     extracted_val_str: str,
     test_name_str: str,
     ocr_lines: List[Dict[str, Any]]
-) -> Tuple[Optional[Dict[str, float]], bool]:
+) -> Tuple[Optional[Dict[str, float]], bool, str]:
     """
-    Patch A — Real bounding box grounding.
-    Matches extracted value string or test name against OCR / Document AI detected text lines.
-    Uses token set and partial ratio matching.
-    If match confidence >= 70%, returns the real grounded bounding box {x, y, w, h} (0.0 - 1.0).
-    Otherwise returns (None, False), indicating an unconfirmed location.
+    Patch A — Real bounding box grounding with numeric normalization.
+    Matches extracted value string or test name against OCR / Document text lines.
+    Uses token set, normalized numeric matching, and partial ratio.
+    Returns (bbox, is_grounded, grounding_type).
     """
     if not ocr_lines or not (extracted_val_str or test_name_str):
-        return None, False
+        return None, False, "unconfirmed"
 
     val_query = str(extracted_val_str).strip()
+    norm_val = normalize_numeric_string(val_query)
     name_query = str(test_name_str).strip()
     combined_query = f"{name_query} {val_query}".strip()
 
@@ -93,11 +136,13 @@ def ground_bbox(
         if not line_text:
             continue
 
-        # 1. Direct containment check
-        if val_query and (val_query in line_text):
-            # If name is also partially in line, strong match
+        norm_line = " ".join([normalize_numeric_string(w) for w in line_text.split()])
+
+        # 1. Direct or normalized containment check
+        has_val = (val_query and val_query in line_text) or (norm_val and norm_val in norm_line)
+        if has_val:
             name_score = fuzz.partial_ratio(name_query.lower(), line_text.lower()) if name_query else 50
-            score = 80.0 + (name_score * 0.2)
+            score = 85.0 + (name_score * 0.15)
         else:
             # 2. Token set / partial ratio matching
             s_combined = fuzz.token_set_ratio(combined_query.lower(), line_text.lower())
@@ -109,16 +154,18 @@ def ground_bbox(
             best_match = line
 
     if highest_score >= 70.0 and best_match and "bbox" in best_match:
-        return best_match["bbox"], True
+        source_type = best_match.get("source", "model_self_consistency")
+        grounding_type = "independent_ocr_line_match" if "independent" in source_type else "model_self_consistency"
+        return best_match["bbox"], True, grounding_type
 
-    return None, False
+    return None, False, "unconfirmed"
 
 
 class VisionExtractionEngine:
     """
     Core Vision & Document Ingestion Engine.
     Handles Gemini Vision 1.5 Pro / Flash calls with safe fallback to local heuristic OCR,
-    bounding box line grounding, patient matching, and cryptographic hashing.
+    independent text line grounding, patient matching, and cryptographic hashing.
     """
 
     def __init__(self):
@@ -134,30 +181,43 @@ class VisionExtractionEngine:
 
         # Attempt Gemini Vision extraction if API key configured
         extracted_data = None
+        extraction_mode = "demo_fallback"
+        extraction_warning = None
+
         if self.api_key:
             try:
                 extracted_data = self._extract_with_gemini(file_bytes, file_name)
+                if extracted_data and extracted_data.get("results"):
+                    extraction_mode = "gemini_live"
             except Exception as e:
                 print(f"[VisionEngine] Gemini API call failed, falling back to local extractor: {e}")
 
         # Fallback to local intelligent extractor if Gemini is unconfigured or failed
         if not extracted_data:
+            extraction_mode = "demo_fallback"
+            extraction_warning = "⚠️ Demo Fallback Active — Live Gemini Vision was unconfigured or timed out. Displaying calibrated reference panel."
             extracted_data = self._extract_with_local_engine(file_bytes, file_name)
 
         # Run patient match check
         extracted_patient = extracted_data.get("patient_name", "Unknown")
         match_result = check_patient_match(extracted_patient, active_patient_name or extracted_patient)
 
-        # Ground bounding boxes against detected OCR text lines
-        ocr_lines = extracted_data.get("detected_ocr_lines", [])
+        # Extract independent text lines from document if available
+        independent_lines = []
+        if file_name.lower().endswith(".pdf"):
+            independent_lines = extract_independent_pdf_lines(file_bytes)
+
+        # Merge OCR lines (prioritize independent text lines if found)
+        ocr_lines = independent_lines if independent_lines else extracted_data.get("detected_ocr_lines", [])
+
+        # Ground bounding boxes against detected OCR text lines with numeric normalization
         for item in extracted_data.get("results", []):
             val_str = str(item.get("value", ""))
             name_str = str(item.get("test_name", ""))
-            bbox, is_grounded = ground_bbox(val_str, name_str, ocr_lines)
+            bbox, is_grounded, grounding_type = ground_bbox(val_str, name_str, ocr_lines)
             item["bbox"] = bbox
             item["is_grounded"] = is_grounded
-            # Relabel confidence
-            # legibility_flag is the model's claim; confidence_tier will be calculated by SanityChecker
+            item["grounding_type"] = grounding_type
             item["legibility_flag"] = item.get("confidence", 0.95)
 
         return {
@@ -168,7 +228,9 @@ class VisionExtractionEngine:
             "doctor_name": extracted_data.get("doctor_name", "Dr. S. K. Ramanathan, MD"),
             "report_date": extracted_data.get("report_date", "2026-03-01"),
             "results": extracted_data.get("results", []),
-            "detected_ocr_lines": ocr_lines
+            "detected_ocr_lines": ocr_lines,
+            "extraction_mode": extraction_mode,
+            "extraction_warning": extraction_warning
         }
 
     def _extract_with_gemini(self, file_bytes: bytes, file_name: str) -> Dict[str, Any]:

@@ -6,13 +6,13 @@ import unittest
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database import init_db, SessionLocal, Patient, Report, TestResult, PatientReportedData, Consent, ReportHash
-from extractors.vision_extractor import calculate_sha256, check_patient_match, ground_bbox
+from extractors.vision_extractor import calculate_sha256, check_patient_match, ground_bbox, normalize_numeric_string, VisionExtractionEngine
 from normalizers.loinc_normalizer import LoincNormalizer
 from normalizers.sanity_checker import BiologicalSanityChecker
 from normalizers.rxnorm_service import RxNormService
 from intake.provenance import detect_inconsistencies
 from trends.temporal_engine import TemporalIntelligenceEngine
-from adversarial.interpreter import AdversarialInterpreter
+from adversarial.interpreter import AdversarialInterpreter, validate_and_sanitize_output, DIAGNOSTIC_BLOCKLIST
 from fhir.fhir_builder import FhirBundleBuilder
 from consent.consent_manager import ConsentManager
 from samples.sample_data import seed_sample_database
@@ -117,15 +117,18 @@ class TestMedLensPlatform(unittest.TestCase):
     def test_06_grounded_bbox(self):
         ocr_lines = [
             {"text": "Patient Name: Arjun Sharma", "bbox": {"x": 0.1, "y": 0.1, "w": 0.8, "h": 0.05}},
-            {"text": "TSH (Thyroid Stimulating Hormone)  6.8 uIU/mL (0.40 - 4.50)", "bbox": {"x": 0.1, "y": 0.28, "w": 0.8, "h": 0.04}}
+            {"text": "TSH (Thyroid Stimulating Hormone)  6.80 uIU/mL (0.40 - 4.50)", "bbox": {"x": 0.1, "y": 0.28, "w": 0.8, "h": 0.04}}
         ]
-        bbox, grounded = ground_bbox("6.8", "TSH", ocr_lines)
+        # Test numeric normalization ("6.8" matches "6.80")
+        bbox, grounded, gtype = ground_bbox("6.8", "TSH", ocr_lines)
         self.assertTrue(grounded)
         self.assertIsNotNone(bbox)
+        self.assertIn(gtype, ["independent_ocr_line_match", "model_self_consistency"])
 
-        bbox2, grounded2 = ground_bbox("999.9", "Unknown", ocr_lines)
+        bbox2, grounded2, gtype2 = ground_bbox("999.9", "Unknown", ocr_lines)
         self.assertFalse(grounded2)
         self.assertIsNone(bbox2)
+        self.assertEqual(gtype2, "unconfirmed")
 
     def test_07_inconsistency_detection_with_rxnorm(self):
         patient_reported = {
@@ -178,8 +181,7 @@ class TestMedLensPlatform(unittest.TestCase):
         
         self.assertEqual(intel["flag_count"], 2)
         summary = intel["primary_summary"].lower()
-        forbidden_terms = ["you have hypothyroidism", "you have hypercholesterolemia", "diagnosed with anemia", "diagnosed with diabetes"]
-        for term in forbidden_terms:
+        for term in DIAGNOSTIC_BLOCKLIST:
             self.assertNotIn(term, summary)
         self.assertGreaterEqual(len(intel["counter_explanations"]), 2)
         self.assertGreaterEqual(len(intel["doctor_questions"]), 2)
@@ -203,7 +205,8 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertIn("nrces.in", patient_entry["meta"]["profile"][0])
 
     def test_11_dpdp_consent_and_delete(self):
-        temp_id = "pat-temp-delete-101"
+        import uuid
+        temp_id = f"pat-temp-{uuid.uuid4().hex[:8]}"
         p = Patient(id=temp_id, name="Temporary Delete Patient")
         self.db.add(p)
         self.db.commit()
@@ -217,6 +220,43 @@ class TestMedLensPlatform(unittest.TestCase):
 
         deleted_p = self.db.query(Patient).filter(Patient.id == temp_id).first()
         self.assertIsNone(deleted_p)
+
+    def test_12_output_side_safety_blocklist_intercepts_diagnoses(self):
+        # Strict invariant: any diagnostic phrasing must be intercepted
+        unsafe_samples = [
+            "Patient is diagnosed with hypothyroidism and needs urgent thyroxine.",
+            "Findings suggest the presence of type 2 diabetes mellitus.",
+            "The patient suffers from severe chronic kidney disease and hypertension.",
+            "Elevated triglycerides indicate a case of advanced dyslipidemia."
+        ]
+        for unsafe in unsafe_samples:
+            is_safe, violation = validate_and_sanitize_output(unsafe)
+            self.assertFalse(is_safe)
+            self.assertIsNotNone(violation)
+
+        # Non-diagnostic statement must pass
+        safe_sample = "On your report, TSH and Total Cholesterol are outside standard laboratory reference intervals."
+        is_safe, violation = validate_and_sanitize_output(safe_sample)
+        self.assertTrue(is_safe)
+        self.assertIsNone(violation)
+
+    def test_13_numeric_string_normalization(self):
+        self.assertEqual(normalize_numeric_string("6.80"), "6.8")
+        self.assertEqual(normalize_numeric_string("195.00"), "195")
+        self.assertEqual(normalize_numeric_string("1,250.0"), "1250")
+        self.assertEqual(normalize_numeric_string("0.90"), "0.9")
+
+    def test_14_extraction_engine_mode_flag(self):
+        engine = VisionExtractionEngine()
+        res = engine.process_document(
+            file_bytes=b"Sample PDF bytes content",
+            file_name="sample_report.pdf",
+            active_patient_name="Test Patient"
+        )
+        self.assertIn("extraction_mode", res)
+        self.assertIn(res["extraction_mode"], ["gemini_live", "demo_fallback"])
+        self.assertIn("sha256_hash", res)
+        self.assertEqual(len(res["sha256_hash"]), 64)
 
 if __name__ == "__main__":
     unittest.main()

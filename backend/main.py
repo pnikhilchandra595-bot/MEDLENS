@@ -326,6 +326,7 @@ def get_report_details(
             "doctor_name": report.doctor_name,
             "file_name": report.file_name,
             "file_url": report.file_url,
+            "extraction_mode": getattr(report, "extraction_mode", "gemini_live"),
             "sha256_hash": hash_entry.sha256_hash if hash_entry else None,
             "provenance_tag": "Extracted from report"
         },
@@ -339,7 +340,7 @@ def get_report_details(
 async def upload_report(
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
-    patient_name: Optional[str] = Form("Arjun Sharma"),
+    patient_name: Optional[str] = Form(None),
     consent_confirmed: bool = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -361,13 +362,22 @@ async def upload_report(
     # Step 1.1: SHA-256 Tamper Evidence
     sha256_hash = calculate_sha256(file_bytes)
 
+    # Step 1.2: Multi-modal Vision Extraction + Grounding
+    raw_extraction = vision_engine.process_document(
+        file_bytes=file_bytes,
+        file_name=file.filename,
+        active_patient_name=patient_name
+    )
+
+    resolved_patient_name = patient_name or raw_extraction.get("patient_name") or "Unknown Patient"
+
     # Find or create patient
     if not patient_id:
-        patient = db.query(Patient).filter(Patient.name == patient_name).first()
+        patient = db.query(Patient).filter(Patient.name == resolved_patient_name).first()
         if not patient:
             patient = Patient(
                 id=f"pat-{uuid.uuid4().hex[:8]}",
-                name=patient_name or "New Patient",
+                name=resolved_patient_name,
                 age=40,
                 sex="Unspecified"
             )
@@ -378,20 +388,13 @@ async def upload_report(
     else:
         patient = db.query(Patient).filter(Patient.id == patient_id).first()
         if not patient:
-            patient = Patient(id=patient_id, name=patient_name or "Patient")
+            patient = Patient(id=patient_id, name=resolved_patient_name)
             db.add(patient)
             db.commit()
             db.refresh(patient)
 
     # Record consent log
     ConsentManager.record_consent(db, patient_id=patient.id)
-
-    # Step 1.2: Multi-modal Vision Extraction + Grounding
-    raw_extraction = vision_engine.process_document(
-        file_bytes=file_bytes,
-        file_name=file.filename,
-        active_patient_name=patient.name
-    )
 
     report_id = f"rep-{file_id}"
     report = Report(
@@ -402,7 +405,8 @@ async def upload_report(
         doctor_name=raw_extraction.get("doctor_name"),
         file_path=saved_path,
         file_name=file.filename,
-        file_url=f"/uploads/{safe_filename}"
+        file_url=f"/uploads/{safe_filename}",
+        extraction_mode=raw_extraction.get("extraction_mode", "gemini_live")
     )
     db.add(report)
 
@@ -453,6 +457,7 @@ async def upload_report(
             bbox_w=bbox.get("w"),
             bbox_h=bbox.get("h"),
             is_grounded=item.get("is_grounded", False),
+            grounding_type=item.get("grounding_type", "independent_ocr_line_match"),
             source="Extracted from report"
         )
         db.add(test_result)
@@ -464,9 +469,12 @@ async def upload_report(
         "status": "success",
         "report_id": report_id,
         "patient_id": patient.id,
+        "patient_name": resolved_patient_name,
         "patient_match": raw_extraction.get("patient_match"),
         "sha256_hash": sha256_hash,
         "results_count": len(processed_results),
+        "extraction_mode": raw_extraction.get("extraction_mode", "gemini_live"),
+        "extraction_warning": raw_extraction.get("extraction_warning"),
         "message": "Lab report successfully processed with grounded bboxes and LOINC normalization."
     }
 
