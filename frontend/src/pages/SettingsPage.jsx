@@ -13,6 +13,8 @@ import {
 import { deletePatientData, fetchPatient } from '../api/client';
 import ProvenanceBadge from '../components/ProvenanceBadge';
 
+import PropTypes from 'prop-types';
+
 export default function SettingsPage({
   patientId,
   patientName,
@@ -183,3 +185,10 @@ export default function SettingsPage({
     </div>
   );
 }
+
+SettingsPage.propTypes = {
+  patientId: PropTypes.string,
+  patientName: PropTypes.string,
+  onDataDeleted: PropTypes.func
+};
+

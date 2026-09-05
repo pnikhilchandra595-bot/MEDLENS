@@ -21,6 +21,7 @@ import {
   ArrowDownRight,
   Minus
 } from 'lucide-react';
+import PropTypes from 'prop-types';
 import { fetchPatientTimeline } from '../api/client';
 import ProvenanceBadge from '../components/ProvenanceBadge';
 
@@ -271,3 +272,9 @@ export default function TimelinePage({ patientId, patientName }) {
     </div>
   );
 }
+
+TimelinePage.propTypes = {
+  patientId: PropTypes.string,
+  patientName: PropTypes.string
+};
+

@@ -117,6 +117,46 @@ class ReportHash(Base):
 
     report = relationship("Report", back_populates="hashes")
 
+class AiSummaryCache(Base):
+    __tablename__ = "ai_summary_cache"
+
+    id = Column(String, primary_key=True, index=True)
+    report_id = Column(String, index=True, nullable=False)
+    results_hash = Column(String, index=True, nullable=False)
+    language = Column(String, default="en", index=True)
+    payload_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=get_utc_now)
+
+class LoincCache(Base):
+    __tablename__ = "loinc_cache"
+
+    query_term = Column(String, primary_key=True, index=True)
+    loinc_code = Column(String, index=True)
+    canonical_name = Column(String)
+    standard_unit = Column(String, nullable=True)
+    is_recognized = Column(Boolean, default=True)
+    cached_at = Column(DateTime, default=get_utc_now)
+
+class RxNormCache(Base):
+    __tablename__ = "rxnorm_cache"
+
+    brand_name = Column(String, primary_key=True, index=True)
+    active_ingredient = Column(String)
+    rxcui = Column(String)
+    is_recognized = Column(Boolean, default=True)
+    cached_at = Column(DateTime, default=get_utc_now)
+
+class ResultAuditTrail(Base):
+    __tablename__ = "result_audit_trails"
+
+    id = Column(String, primary_key=True, index=True)
+    result_id = Column(String, ForeignKey("test_results.id"), nullable=False, index=True)
+    previous_value = Column(Float, nullable=True)
+    corrected_value = Column(Float, nullable=False)
+    reason = Column(Text, nullable=True)
+    corrected_by = Column(String, default="Patient/Clinician")
+    created_at = Column(DateTime, default=get_utc_now)
+
 def init_db():
     Base.metadata.create_all(bind=engine)
     # Automatic column additions for existing SQLite databases
@@ -138,3 +178,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

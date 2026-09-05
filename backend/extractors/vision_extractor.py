@@ -161,6 +161,27 @@ def ground_bbox(
     return None, False, "unconfirmed"
 
 
+def optimize_image_for_vision(file_bytes: bytes, max_dim: int = 2048) -> Tuple[bytes, str]:
+    """
+    Downsamples oversized images before transmission to Vision models,
+    conserving tokens, reducing latency, and avoiding API payload limit rejections.
+    """
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(file_bytes))
+        width, height = img.size
+        if width > max_dim or height > max_dim:
+            img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+            out_io = io.BytesIO()
+            fmt = img.format if img.format in ["JPEG", "PNG", "WEBP"] else "JPEG"
+            if fmt == "JPEG" and img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            img.save(out_io, format=fmt, quality=85)
+            return out_io.getvalue(), f"image/{fmt.lower()}"
+        return file_bytes, f"image/{img.format.lower() if img.format else 'jpeg'}"
+    except Exception:
+        return file_bytes, "image/jpeg"
+
 class VisionExtractionEngine:
     """
     Core Vision & Document Ingestion Engine.
@@ -267,9 +288,15 @@ class VisionExtractionEngine:
         }
         Do not add markdown formatting or extra text outside JSON.
         """
-        mime_type = "application/pdf" if file_name.lower().endswith(".pdf") else "image/jpeg"
+        is_pdf = file_name.lower().endswith(".pdf")
+        if is_pdf:
+            payload_bytes = file_bytes
+            mime_type = "application/pdf"
+        else:
+            payload_bytes, mime_type = optimize_image_for_vision(file_bytes, max_dim=2048)
+
         response = model.generate_content([
-            {"mime_type": mime_type, "data": file_bytes},
+            {"mime_type": mime_type, "data": payload_bytes},
             prompt
         ])
         text = response.text.strip()

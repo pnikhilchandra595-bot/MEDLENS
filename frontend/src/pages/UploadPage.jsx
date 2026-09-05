@@ -312,8 +312,9 @@ export default function UploadPage({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Age</label>
+                <label htmlFor="intake-age" className="block text-xs text-slate-400 mb-1">Age</label>
                 <input
+                  id="intake-age"
                   type="number"
                   value={intake.age}
                   onChange={(e) => setIntake({ ...intake, age: parseInt(e.target.value) || 0 })}
@@ -321,8 +322,9 @@ export default function UploadPage({
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Biological Sex</label>
+                <label htmlFor="intake-sex" className="block text-xs text-slate-400 mb-1">Biological Sex</label>
                 <select
+                  id="intake-sex"
                   value={intake.sex}
                   onChange={(e) => setIntake({ ...intake, sex: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
@@ -335,8 +337,9 @@ export default function UploadPage({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Reported Symptoms (Free Text)</label>
+              <label htmlFor="intake-symptoms" className="block text-xs text-slate-400 mb-1">Reported Symptoms (Free Text)</label>
               <textarea
+                id="intake-symptoms"
                 rows={2}
                 value={intake.symptoms}
                 onChange={(e) => setIntake({ ...intake, symptoms: e.target.value })}
@@ -346,8 +349,9 @@ export default function UploadPage({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Known Diagnosed Conditions</label>
+              <label htmlFor="intake-conditions" className="block text-xs text-slate-400 mb-1">Known Diagnosed Conditions</label>
               <input
+                id="intake-conditions"
                 type="text"
                 value={intake.conditions}
                 onChange={(e) => setIntake({ ...intake, conditions: e.target.value })}
@@ -358,10 +362,11 @@ export default function UploadPage({
 
             <div className="space-y-2">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">
+                <label htmlFor="intake-medications" className="block text-xs text-slate-400 mb-1">
                   Current Medications (Auto-Normalized via NLM RxNorm)
                 </label>
                 <input
+                  id="intake-medications"
                   type="text"
                   value={intake.medications}
                   onChange={(e) => setIntake({ ...intake, medications: e.target.value })}
@@ -393,8 +398,9 @@ export default function UploadPage({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Allergies</label>
+              <label htmlFor="intake-allergies" className="block text-xs text-slate-400 mb-1">Allergies</label>
               <input
+                id="intake-allergies"
                 type="text"
                 value={intake.allergies}
                 onChange={(e) => setIntake({ ...intake, allergies: e.target.value })}
@@ -415,3 +421,9 @@ export default function UploadPage({
     </div>
   );
 }
+
+UploadPage.propTypes = {
+  selectedPatient: PropTypes.object,
+  onUploadSuccess: PropTypes.func,
+  onSelectQuickDemo: PropTypes.func
+};

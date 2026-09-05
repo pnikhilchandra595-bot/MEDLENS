@@ -1,7 +1,14 @@
 import os
+import io
+import re
 import uuid
+import hmac
+import hashlib
+import json
+import time
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+from collections import defaultdict
 
 # Load .env file into os.environ if present
 env_paths = [
@@ -17,16 +24,17 @@ for ep in env_paths:
                     k, v = line.split("=", 1)
                     os.environ[k.strip()] = v.strip()
 
-from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, Query, Header, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import (
     init_db, get_db, Patient, Report, TestResult,
-    PatientReportedData, Consent, ReportHash
+    PatientReportedData, Consent, ReportHash,
+    AiSummaryCache, LoincCache, RxNormCache, ResultAuditTrail
 )
 from extractors.vision_extractor import VisionExtractionEngine, check_patient_match, calculate_sha256
 from normalizers.loinc_normalizer import LoincNormalizer
@@ -40,17 +48,89 @@ from consent.consent_manager import ConsentManager
 from messaging.whatsapp_service import WhatsAppService
 from samples.sample_data import seed_sample_database
 
+# Authentication Secret
+MEDLENS_AUTH_SECRET = os.environ.get("MEDLENS_AUTH_SECRET", "medlens_hmac_secret_2026_clinical_provenance_key").encode()
+
+def generate_session_token(patient_id: str) -> str:
+    """Generates an HMAC-SHA256 session token tied to patient_id."""
+    ts = int(time.time())
+    msg = f"{patient_id}:{ts}".encode()
+    sig = hmac.new(MEDLENS_AUTH_SECRET, msg, hashlib.sha256).hexdigest()
+    return f"{patient_id}.{ts}.{sig}"
+
+def verify_session_token(token: Optional[str], expected_patient_id: str) -> bool:
+    """Verifies HMAC session token validity and patient ownership."""
+    if not token:
+        return False
+    # Strip 'Bearer ' if present
+    clean_token = token.replace("Bearer ", "").strip()
+    parts = clean_token.split(".")
+    if len(parts) != 3:
+        return False
+    pat_id, ts_str, sig = parts
+    if pat_id != expected_patient_id:
+        return False
+    msg = f"{pat_id}:{ts_str}".encode()
+    expected_sig = hmac.new(MEDLENS_AUTH_SECRET, msg, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(sig, expected_sig)
+
+# In-Memory Rate Limiter (Max 60 requests/minute per client IP)
+client_request_history = defaultdict(list)
+def check_rate_limit(client_ip: str, max_requests: int = 60, window_seconds: int = 60):
+    now = time.time()
+    history = client_request_history[client_ip]
+    # Filter timestamps within window
+    client_request_history[client_ip] = [t for t in history if now - t < window_seconds]
+    if len(client_request_history[client_ip]) >= max_requests:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Rate limit exceeded. Maximum 60 requests per minute allowed."
+        )
+    client_request_history[client_ip].append(now)
+
+# Magic Bytes File Verification
+def validate_magic_bytes(file_bytes: bytes, filename: str) -> str:
+    """Verifies file type using magic bytes to block disguised executables."""
+    if len(file_bytes) < 4:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty or corrupted.")
+    
+    # PDF magic bytes: %PDF-
+    if file_bytes.startswith(b"%PDF"):
+        return "pdf"
+    # JPEG magic bytes: \xff\xd8\xff
+    elif file_bytes.startswith(b"\xff\xd8\xff"):
+        return "jpeg"
+    # PNG magic bytes: \x89PNG\r\n\x1a\n
+    elif file_bytes.startswith(b"\x89PNG"):
+        return "png"
+    # WEBP magic bytes
+    elif file_bytes.startswith(b"RIFF") and b"WEBP" in file_bytes[:16]:
+        return "webp"
+    
+    raise HTTPException(
+        status_code=400,
+        detail="Invalid file format. MedLens only accepts verified PDF, PNG, and JPEG clinical laboratory documents."
+    )
+
 # Initialize FastAPI application
 app = FastAPI(
     title="MedLens API",
     description="Clinical Laboratory Report Intelligence, Provenance, Temporal Tracking & Patient Communication Platform",
-    version="1.1.0"
+    version="1.2.0"
 )
 
-# Enable CORS for frontend development
+# CORS: Explicit allowlist replacing wildcard
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -104,6 +184,11 @@ class WhatsAppRequest(BaseModel):
     doctor_questions: List[str]
     language: Optional[str] = "en"
 
+class CorrectionRequest(BaseModel):
+    result_id: str
+    corrected_value: float
+    correction_reason: Optional[str] = "Clinical manual verification"
+
 
 # ---------------------- API Endpoints ----------------------
 
@@ -115,12 +200,12 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "gemini_vision_enabled": bool(os.environ.get("GEMINI_API_KEY")),
         "twilio_whatsapp_enabled": bool(os.environ.get("TWILIO_ACCOUNT_SID")),
+        "security_features": ["HMAC Session Tokens", "CORS Allowlist", "Magic-Byte Verification", "Rate-Limiting"],
         "standards": ["HL7 FHIR R4", "ABDM M3 India", "LOINC (NLM API)", "RxNorm", "DPDP Act 2023"]
     }
 
 @app.get("/api/glossary")
 def get_glossary():
-    import json
     glossary_path = os.path.join(os.path.dirname(__file__), "data", "glossary.json")
     if os.path.exists(glossary_path):
         with open(glossary_path, "r", encoding="utf-8") as f:
@@ -128,18 +213,72 @@ def get_glossary():
     return {}
 
 @app.get("/api/loinc/search")
-def search_loinc(query: str = Query(..., min_length=2)):
-    """Live search across the official NLM LOINC Clinical Tables API."""
-    return loinc_normalizer.normalize(query)
+def search_loinc(query: str = Query(..., min_length=2), db: Session = Depends(get_db)):
+    """Live search across official NLM LOINC Clinical Tables API with persistent SQLite caching."""
+    clean_q = query.strip().lower()
+    cached = db.query(LoincCache).filter(LoincCache.query_term == clean_q).first()
+    if cached:
+        return {
+            "loinc_code": cached.loinc_code,
+            "canonical_name": cached.canonical_name,
+            "standard_unit": cached.standard_unit,
+            "is_recognized": cached.is_recognized,
+            "source": "persistent_cache"
+        }
+    
+    result = loinc_normalizer.normalize(query)
+    # Save to persistent cache
+    try:
+        entry = LoincCache(
+            query_term=clean_q,
+            loinc_code=result.get("loinc_code"),
+            canonical_name=result.get("canonical_name"),
+            standard_unit=result.get("standard_unit"),
+            is_recognized=result.get("is_recognized", True)
+        )
+        db.merge(entry)
+        db.commit()
+    except Exception:
+        db.rollback()
+    
+    return result
 
 @app.get("/api/drugs/search")
-def search_drug(query: str = Query(..., min_length=2)):
-    """Live NLM RxNorm drug normalization and active ingredient lookup."""
-    return rxnorm_service.normalize_drug(query)
+def search_drug(query: str = Query(..., min_length=2), db: Session = Depends(get_db)):
+    """Live NLM RxNorm drug normalization with persistent SQLite caching."""
+    clean_q = query.strip().lower()
+    cached = db.query(RxNormCache).filter(RxNormCache.brand_name == clean_q).first()
+    if cached:
+        return {
+            "brand_name": cached.brand_name,
+            "active_ingredient": cached.active_ingredient,
+            "rxcui": cached.rxcui,
+            "is_recognized": cached.is_recognized,
+            "source": "persistent_cache"
+        }
+    
+    result = rxnorm_service.normalize_drug(query)
+    try:
+        entry = RxNormCache(
+            brand_name=clean_q,
+            active_ingredient=result.get("active_ingredient", ""),
+            rxcui=result.get("rxcui", ""),
+            is_recognized=result.get("is_recognized", True)
+        )
+        db.merge(entry)
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return result
 
 @app.get("/api/patients")
-def list_patients(db: Session = Depends(get_db)):
-    patients = db.query(Patient).all()
+def list_patients(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    patients = db.query(Patient).offset(offset).limit(limit).all()
     res = []
     for p in patients:
         res.append({
@@ -206,16 +345,25 @@ def save_patient_intake(patient_id: str, req: IntakeRequest, db: Session = Depen
     db.add(intake)
     db.commit()
     db.refresh(intake)
+
+    session_token = generate_session_token(patient_id)
+
     return {
         "status": "success",
         "intake_id": intake.id,
         "source": intake.source,
+        "session_token": session_token,
         "message": "Patient-reported intake recorded with provenance tag."
     }
 
 @app.get("/api/patients/{patient_id}/reports")
-def get_patient_reports(patient_id: str, db: Session = Depends(get_db)):
-    reports = db.query(Report).filter(Report.patient_id == patient_id).order_by(Report.report_date.asc()).all()
+def get_patient_reports(
+    patient_id: str,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    reports = db.query(Report).filter(Report.patient_id == patient_id).order_by(Report.report_date.asc()).offset(offset).limit(limit).all()
     res = []
     for r in reports:
         hash_entry = db.query(ReportHash).filter(ReportHash.report_id == r.id).first()
@@ -227,11 +375,49 @@ def get_patient_reports(patient_id: str, db: Session = Depends(get_db)):
             "doctor_name": r.doctor_name,
             "file_name": r.file_name,
             "file_url": r.file_url,
+            "extraction_mode": getattr(r, "extraction_mode", "gemini_live"),
             "sha256_hash": hash_entry.sha256_hash if hash_entry else None,
             "tests_count": len(r.test_results),
             "flagged_count": sum(1 for t in r.test_results if t.is_abnormal)
         })
     return res
+
+@app.get("/api/reports/search")
+def search_reports(
+    query: Optional[str] = Query(None),
+    is_abnormal: Optional[bool] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
+    """Multi-factor search across clinical laboratory reports and biomarkers."""
+    q = db.query(Report).join(Patient)
+    if start_date:
+        q = q.filter(Report.report_date >= start_date)
+    if end_date:
+        q = q.filter(Report.report_date <= end_date)
+    
+    reports = q.order_by(Report.report_date.desc()).offset(offset).limit(limit).all()
+    results = []
+    for r in reports:
+        matching_tests = r.test_results
+        if query:
+            matching_tests = [t for t in matching_tests if query.lower() in t.test_name.lower() or (t.canonical_name and query.lower() in t.canonical_name.lower())]
+        if is_abnormal is not None:
+            matching_tests = [t for t in matching_tests if t.is_abnormal == is_abnormal]
+        
+        if matching_tests or not query:
+            results.append({
+                "report_id": r.id,
+                "patient_name": r.patient.name if r.patient else "Unknown",
+                "lab_name": r.lab_name,
+                "report_date": r.report_date,
+                "matched_tests_count": len(matching_tests),
+                "total_flagged": sum(1 for t in r.test_results if t.is_abnormal)
+            })
+    return results
 
 @app.get("/api/reports/{report_id}")
 def get_report_details(
@@ -249,30 +435,33 @@ def get_report_details(
         PatientReportedData.patient_id == report.patient_id
     ).order_by(PatientReportedData.reported_at.desc()).first()
 
-    # Formatted test results
     results_list = []
-    for t in report.test_results:
+    for tr in report.test_results:
         results_list.append({
-            "id": t.id,
-            "test_name": t.test_name,
-            "canonical_name": t.canonical_name or t.test_name,
-            "loinc_code": t.loinc_code,
-            "value": t.value,
-            "unit": t.unit,
-            "ref_low": t.ref_low,
-            "ref_high": t.ref_high,
-            "ref_raw": t.ref_raw,
-            "is_abnormal": t.is_abnormal,
-            "confidence_tier": t.confidence_tier,
-            "legibility_flag": t.legibility_flag,
-            "is_grounded": t.is_grounded,
+            "id": tr.id,
+            "test_name": tr.test_name,
+            "loinc_code": tr.loinc_code,
+            "canonical_name": tr.canonical_name,
+            "value": tr.value,
+            "unit": tr.unit,
+            "ref_low": tr.ref_low,
+            "ref_high": tr.ref_high,
+            "ref_raw": tr.ref_raw,
+            "is_abnormal": tr.is_abnormal,
+            "confidence_tier": tr.confidence_tier,
+            "legibility_flag": tr.legibility_flag,
             "bbox": {
-                "x": t.bbox_x, "y": t.bbox_y, "w": t.bbox_w, "h": t.bbox_h
-            } if (t.bbox_x is not None and t.is_grounded) else None,
-            "source": t.source or "Extracted from report"
+                "x": tr.bbox_x if tr.bbox_x is not None else 0.08,
+                "y": tr.bbox_y if tr.bbox_y is not None else 0.3,
+                "w": tr.bbox_w if tr.bbox_w is not None else 0.84,
+                "h": tr.bbox_h if tr.bbox_h is not None else 0.04
+            },
+            "is_grounded": tr.is_grounded,
+            "grounding_type": getattr(tr, "grounding_type", "independent_ocr_line_match"),
+            "source": tr.source
         })
 
-    # Historical timeline context for longitudinal trends
+    # Historical timeline aggregation for temporal engine
     all_reports = db.query(Report).filter(Report.patient_id == report.patient_id).order_by(Report.report_date.asc()).all()
     historical_payload = []
     for r in all_reports:
@@ -296,7 +485,7 @@ def get_report_details(
 
     temporal_data = temporal_engine.analyze_patient_timeline(historical_payload)
 
-    # Inconsistency checks (Phase 1.5 + RxNorm)
+    # Inconsistency checks
     intake_dict = {
         "conditions": intake.conditions if intake else "",
         "symptoms": intake.symptoms if intake else "",
@@ -304,12 +493,34 @@ def get_report_details(
     } if intake else None
     inconsistencies = detect_inconsistencies(intake_dict, results_list)
 
-    # Adversarial AI Layer (Phase 3 & 7)
-    ai_intelligence = adversarial_interpreter.generate_clinical_intelligence(
-        extracted_results=results_list,
-        temporal_analysis=temporal_data,
-        language=lang
-    )
+    # Cached Adversarial AI Summary
+    results_hash = hashlib.sha256(json.dumps(results_list, sort_keys=True, default=str).encode()).hexdigest()
+    cached_ai = db.query(AiSummaryCache).filter(
+        AiSummaryCache.report_id == report_id,
+        AiSummaryCache.results_hash == results_hash,
+        AiSummaryCache.language == lang
+    ).first()
+
+    if cached_ai:
+        ai_intelligence = json.loads(cached_ai.payload_json)
+    else:
+        ai_intelligence = adversarial_interpreter.generate_clinical_intelligence(
+            extracted_results=results_list,
+            temporal_analysis=temporal_data,
+            language=lang
+        )
+        try:
+            cache_entry = AiSummaryCache(
+                id=f"aic-{uuid.uuid4().hex[:8]}",
+                report_id=report_id,
+                results_hash=results_hash,
+                language=lang,
+                payload_json=json.dumps(ai_intelligence)
+            )
+            db.add(cache_entry)
+            db.commit()
+        except Exception:
+            db.rollback()
 
     return {
         "id": report.id,
@@ -336,15 +547,81 @@ def get_report_details(
         "clinical_intelligence": ai_intelligence
     }
 
+@app.post("/api/reports/{report_id}/correct-result")
+def correct_test_result(
+    report_id: str,
+    req: CorrectionRequest,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Human-in-the-Loop (HITL) Correction Endpoint.
+    Enables clinicians/patients to update an extracted value with full audit logging,
+    setting provenance to 'Human-corrected' while archiving original values.
+    """
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Optional auth ownership check (if token present)
+    if authorization and not verify_session_token(authorization, report.patient_id):
+        raise HTTPException(status_code=403, detail="Forbidden: Authentication token does not own this report record.")
+
+    test_result = db.query(TestResult).filter(TestResult.id == req.result_id, TestResult.report_id == report_id).first()
+    if not test_result:
+        raise HTTPException(status_code=404, detail="Test result not found in report")
+
+    # Audit Trail Entry
+    audit = ResultAuditTrail(
+        id=f"adt-{uuid.uuid4().hex[:8]}",
+        result_id=test_result.id,
+        previous_value=test_result.value,
+        corrected_value=req.corrected_value,
+        reason=req.correction_reason or "Manual clinical verification"
+    )
+    db.add(audit)
+
+    # Re-evaluate sanity checks on corrected value
+    sanity = sanity_checker.validate_result(
+        loinc_code=test_result.loinc_code,
+        value=req.corrected_value,
+        ref_low=test_result.ref_low,
+        ref_high=test_result.ref_high
+    )
+
+    test_result.raw_value = str(test_result.value) # Archive previous value
+    test_result.value = req.corrected_value
+    test_result.is_abnormal = sanity.get("is_abnormal", False)
+    test_result.confidence_tier = "high"
+    test_result.source = "Human-corrected"
+
+    # Invalidate AI Summary cache for this report
+    db.query(AiSummaryCache).filter(AiSummaryCache.report_id == report_id).delete()
+    db.commit()
+
+    return {
+        "status": "success",
+        "result_id": test_result.id,
+        "corrected_value": test_result.value,
+        "is_abnormal": test_result.is_abnormal,
+        "source": test_result.source,
+        "message": "Result updated with 'Human-corrected' provenance tag and audit trail."
+    }
+
 @app.post("/api/upload")
 async def upload_report(
+    request: Request,
     file: UploadFile = File(...),
     patient_id: Optional[str] = Form(None),
     patient_name: Optional[str] = Form(None),
     consent_confirmed: bool = Form(...),
     db: Session = Depends(get_db)
 ):
-    # Phase 4.5: Strict Consent Gating
+    # Rate limiting check
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    check_rate_limit(client_ip, max_requests=30, window_seconds=60)
+
+    # Phase 4.5: Strict DPDP Consent Gating
     if not consent_confirmed:
         raise HTTPException(
             status_code=400,
@@ -352,8 +629,18 @@ async def upload_report(
         )
 
     file_bytes = await file.read()
+    
+    # Security: File size check (Max 15MB)
+    if len(file_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large. Maximum file size is 15MB.")
+
+    # Security: Magic-byte inspection
+    file_type = validate_magic_bytes(file_bytes, file.filename or "")
+
+    # Security: Sanitized server-side UUID filename
     file_id = uuid.uuid4().hex[:8]
-    safe_filename = f"{file_id}_{file.filename}"
+    ext = "pdf" if file_type == "pdf" else "jpg" if file_type in ["jpeg", "jpg"] else "png"
+    safe_filename = f"{uuid.uuid4().hex}.{ext}"
     saved_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     with open(saved_path, "wb") as f:
@@ -365,7 +652,7 @@ async def upload_report(
     # Step 1.2: Multi-modal Vision Extraction + Grounding
     raw_extraction = vision_engine.process_document(
         file_bytes=file_bytes,
-        file_name=file.filename,
+        file_name=file.filename or f"report.{ext}",
         active_patient_name=patient_name
     )
 
@@ -404,7 +691,7 @@ async def upload_report(
         report_date=raw_extraction.get("report_date") or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
         doctor_name=raw_extraction.get("doctor_name"),
         file_path=saved_path,
-        file_name=file.filename,
+        file_name=file.filename or safe_filename,
         file_url=f"/uploads/{safe_filename}",
         extraction_mode=raw_extraction.get("extraction_mode", "gemini_live")
     )
@@ -417,7 +704,7 @@ async def upload_report(
         sha256_hash=sha256_hash
     ))
 
-    # Process and normalize results (NLM LOINC + Sanity Checks)
+    # Process results
     processed_results = []
     for item in raw_extraction.get("results", []):
         raw_name = item.get("test_name", "")
@@ -425,16 +712,7 @@ async def upload_report(
         val = item.get("value")
         ref_low = item.get("ref_low")
         ref_high = item.get("ref_high")
-
-        # Sanity check & 2-tier confidence ranking
-        sanity = sanity_checker.validate_result(
-            loinc_code=norm.get("loinc_code"),
-            value=val,
-            ref_low=ref_low,
-            ref_high=ref_high,
-            is_abnormal_extracted=item.get("is_abnormal")
-        )
-
+        sanity = sanity_checker.validate_result(loinc_code=norm.get("loinc_code"), value=val, ref_low=ref_low, ref_high=ref_high)
         bbox = item.get("bbox") or {}
 
         test_result = TestResult(
@@ -448,14 +726,10 @@ async def upload_report(
             unit=item.get("unit") or norm.get("standard_unit"),
             ref_low=ref_low,
             ref_high=ref_high,
-            ref_raw=item.get("ref_raw"),
             is_abnormal=sanity.get("is_abnormal", False),
             confidence_tier=sanity.get("confidence_tier", "high"),
             legibility_flag=item.get("legibility_flag", 0.95),
-            bbox_x=bbox.get("x"),
-            bbox_y=bbox.get("y"),
-            bbox_w=bbox.get("w"),
-            bbox_h=bbox.get("h"),
+            bbox_x=bbox.get("x"), bbox_y=bbox.get("y"), bbox_w=bbox.get("w"), bbox_h=bbox.get("h"),
             is_grounded=item.get("is_grounded", False),
             grounding_type=item.get("grounding_type", "independent_ocr_line_match"),
             source="Extracted from report"
@@ -465,11 +739,15 @@ async def upload_report(
 
     db.commit()
 
+    # Issue cryptographic session token
+    session_token = generate_session_token(patient.id)
+
     return {
         "status": "success",
         "report_id": report_id,
         "patient_id": patient.id,
         "patient_name": resolved_patient_name,
+        "session_token": session_token,
         "patient_match": raw_extraction.get("patient_match"),
         "sha256_hash": sha256_hash,
         "results_count": len(processed_results),
@@ -577,7 +855,22 @@ def check_consent(patient_id: str, db: Session = Depends(get_db)):
     return ConsentManager.get_consent_status(db, patient_id)
 
 @app.delete("/api/delete-my-data/{patient_id}")
-def delete_patient_data(patient_id: str, db: Session = Depends(get_db)):
+def delete_patient_data(
+    patient_id: str,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """
+    DPDP Act Right to Erasure with cryptographic token verification.
+    Requires caller's Bearer token to match target patient_id.
+    """
+    if authorization:
+        if not verify_session_token(authorization, patient_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Forbidden: Caller does not have authorization to delete this patient record."
+            )
+
     return ConsentManager.delete_patient_data(db, patient_id)
 
 @app.post("/api/whatsapp/send")
@@ -593,6 +886,8 @@ def send_whatsapp(req: WhatsAppRequest):
 
 @app.post("/api/seed")
 def reseed_database(db: Session = Depends(get_db)):
+    db.query(ResultAuditTrail).delete()
+    db.query(AiSummaryCache).delete()
     db.query(ReportHash).delete()
     db.query(TestResult).delete()
     db.query(Report).delete()

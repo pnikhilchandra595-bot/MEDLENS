@@ -222,23 +222,37 @@ class TestMedLensPlatform(unittest.TestCase):
         self.assertIsNone(deleted_p)
 
     def test_12_output_side_safety_blocklist_intercepts_diagnoses(self):
-        # Strict invariant: any diagnostic phrasing must be intercepted
+        # Strict invariant: any diagnostic phrasing, disease label, or clinical verdict must be intercepted
         unsafe_samples = [
             "Patient is diagnosed with hypothyroidism and needs urgent thyroxine.",
             "Findings suggest the presence of type 2 diabetes mellitus.",
             "The patient suffers from severe chronic kidney disease and hypertension.",
-            "Elevated triglycerides indicate a case of advanced dyslipidemia."
+            "Elevated triglycerides indicate a case of advanced dyslipidemia.",
+            "Clinical presentation indicates iron deficiency anemia.",
+            "Patient has chronic cardiovascular disease based on elevated lipid profile.",
+            "Lab results confirm acute hepatitis and liver failure.",
+            "Markers point to malignant cancer or lymphoma development.",
+            "The test values suggest metabolic syndrome and insulin resistance.",
+            "Patient is diagnosed with polycystic ovary syndrome (PCOS).",
+            "Symptoms indicate a case of severe rheumatoid arthritis.",
+            "Patient suffers from chronic renal failure and needs dialysis."
         ]
         for unsafe in unsafe_samples:
             is_safe, violation = validate_and_sanitize_output(unsafe)
-            self.assertFalse(is_safe)
+            self.assertFalse(is_safe, f"Failed to intercept unsafe statement: '{unsafe}'")
             self.assertIsNotNone(violation)
 
-        # Non-diagnostic statement must pass
-        safe_sample = "On your report, TSH and Total Cholesterol are outside standard laboratory reference intervals."
-        is_safe, violation = validate_and_sanitize_output(safe_sample)
-        self.assertTrue(is_safe)
-        self.assertIsNone(violation)
+        # Safe, non-diagnostic observational statements must pass
+        safe_samples = [
+            "On your report, TSH and Total Cholesterol are outside standard laboratory reference intervals.",
+            "All recorded laboratory test values on this report are currently within their standard reference intervals.",
+            "Across recorded dates, numerical shifts were observed in Fasting Glucose and Serum Creatinine for doctor consultation.",
+            "TSH value of 6.8 uIU/mL is higher than the laboratory reference upper bound of 4.5 uIU/mL."
+        ]
+        for safe in safe_samples:
+            is_safe, violation = validate_and_sanitize_output(safe)
+            self.assertTrue(is_safe, f"Improperly rejected safe non-diagnostic statement: '{safe}'. Reason: {violation}")
+            self.assertIsNone(violation)
 
     def test_13_numeric_string_normalization(self):
         self.assertEqual(normalize_numeric_string("6.80"), "6.8")

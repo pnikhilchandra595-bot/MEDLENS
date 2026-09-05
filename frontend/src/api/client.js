@@ -1,98 +1,183 @@
+/**
+ * MedLens API Client & Interceptor Layer
+ * Provides centralized error interception, automatic session token injection,
+ * request retry capabilities, and typed API endpoints.
+ */
+
 const API_BASE = '/api';
 
+// In-memory + sessionStorage token store
+const TOKEN_KEY = 'medlens_session_tokens';
+
+export function getSessionToken(patientId) {
+  try {
+    const tokens = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || '{}');
+    return tokens[patientId] || null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSessionToken(patientId, token) {
+  try {
+    const tokens = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || '{}');
+    tokens[patientId] = token;
+    sessionStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
+  } catch (e) {
+    console.warn('[ApiClient] Failed to persist session token:', e);
+  }
+}
+
+/**
+ * Core HTTP Request Wrapper with Error Interception & Auth
+ */
+async function request(endpoint, options = {}, patientId = null) {
+  const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const headers = { ...options.headers };
+
+  // Inject session token if available
+  const token = patientId ? getSessionToken(patientId) : null;
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const config = {
+    ...options,
+    headers
+  };
+
+  try {
+    const res = await fetch(url, config);
+
+    // Handle standard error codes
+    if (!res.ok) {
+      let errorDetail = `Request failed with status ${res.status}`;
+      try {
+        const errJson = await res.json();
+        errorDetail = errJson.detail || errJson.message || errorDetail;
+      } catch {
+        // Non-JSON response
+      }
+
+      const error = new Error(errorDetail);
+      error.status = res.status;
+      error.statusText = res.statusText;
+      throw error;
+    }
+
+    // 204 No Content
+    if (res.status === 204) {
+      return null;
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error(`[ApiClient Error] ${config.method || 'GET'} ${url}:`, err.message);
+    throw err;
+  }
+}
+
+// ---------------- API Endpoints ----------------
+
 export async function fetchHealth() {
-  const res = await fetch(`${API_BASE}/health`);
-  return res.json();
+  return request('/health');
 }
 
 export async function fetchGlossary() {
-  const res = await fetch(`${API_BASE}/glossary`);
-  return res.json();
+  return request('/glossary');
 }
 
 export async function searchNlmLoinc(query) {
-  const res = await fetch(`${API_BASE}/loinc/search?query=${encodeURIComponent(query)}`);
-  return res.json();
+  return request(`/loinc/search?query=${encodeURIComponent(query)}`);
 }
 
 export async function searchRxNormDrug(query) {
-  const res = await fetch(`${API_BASE}/drugs/search?query=${encodeURIComponent(query)}`);
-  return res.json();
+  return request(`/drugs/search?query=${encodeURIComponent(query)}`);
 }
 
-export async function fetchPatients() {
-  const res = await fetch(`${API_BASE}/patients`);
-  return res.json();
+export async function fetchPatients(limit = 50, offset = 0) {
+  return request(`/patients?limit=${limit}&offset=${offset}`);
 }
 
 export async function fetchPatient(patientId) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}`);
-  return res.json();
+  return request(`/patients/${patientId}`, {}, patientId);
 }
 
 export async function savePatientIntake(patientId, intakeData) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/intake`, {
+  return request(`/patients/${patientId}/intake`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ patient_id: patientId, ...intakeData })
-  });
-  return res.json();
+  }, patientId);
 }
 
-export async function fetchPatientReports(patientId) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/reports`);
-  return res.json();
+export async function fetchPatientReports(patientId, limit = 50, offset = 0) {
+  return request(`/patients/${patientId}/reports?limit=${limit}&offset=${offset}`, {}, patientId);
 }
 
-export async function fetchReportDetails(reportId, lang = 'en') {
-  const res = await fetch(`${API_BASE}/reports/${reportId}?lang=${lang}`);
-  return res.json();
+export async function fetchReportDetails(reportId, lang = 'en', patientId = null) {
+  return request(`/reports/${reportId}?lang=${lang}`, {}, patientId);
+}
+
+export async function searchReports(query = '', isAbnormal = null, startDate = null, endDate = null) {
+  const params = new URLSearchParams();
+  if (query) params.append('query', query);
+  if (isAbnormal !== null) params.append('is_abnormal', isAbnormal);
+  if (startDate) params.append('start_date', startDate);
+  if (endDate) params.append('end_date', endDate);
+  return request(`/reports/search?${params.toString()}`);
 }
 
 export async function uploadReport(formData) {
-  const res = await fetch(`${API_BASE}/upload`, {
+  const res = await request('/upload', {
     method: 'POST',
     body: formData
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
-    throw new Error(err.detail || 'Upload failed');
+  // If backend issued a session token, persist it
+  if (res.session_token && res.patient_id) {
+    saveSessionToken(res.patient_id, res.session_token);
   }
-  return res.json();
+  return res;
+}
+
+export async function correctTestResult(reportId, resultId, correctedValue, correctionReason, patientId = null) {
+  return request(`/reports/${reportId}/correct-result`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      result_id: resultId,
+      corrected_value: correctedValue,
+      correction_reason: correctionReason
+    })
+  }, patientId);
 }
 
 export async function fetchPatientTimeline(patientId) {
-  const res = await fetch(`${API_BASE}/patients/${patientId}/timeline`);
-  return res.json();
+  return request(`/patients/${patientId}/timeline`, {}, patientId);
 }
 
-export async function exportFhirBundle(reportId) {
-  const res = await fetch(`${API_BASE}/reports/${reportId}/fhir`);
-  return res.json();
+export async function exportFhirBundle(reportId, patientId = null) {
+  return request(`/reports/${reportId}/fhir`, {}, patientId);
 }
 
-export async function exportAbdmBundle(reportId) {
-  const res = await fetch(`${API_BASE}/reports/${reportId}/abdm`);
-  return res.json();
+export async function exportAbdmBundle(reportId, patientId = null) {
+  return request(`/reports/${reportId}/abdm`, {}, patientId);
 }
 
 export async function deletePatientData(patientId) {
-  const res = await fetch(`${API_BASE}/delete-my-data/${patientId}`, {
+  return request(`/delete-my-data/${patientId}`, {
     method: 'DELETE'
-  });
-  return res.json();
+  }, patientId);
 }
 
 export async function sendWhatsAppMessage(payload) {
-  const res = await fetch(`${API_BASE}/whatsapp/send`, {
+  return request('/whatsapp/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
 
 export async function reseedDatabase() {
-  const res = await fetch(`${API_BASE}/seed`, { method: 'POST' });
-  return res.json();
+  return request('/seed', { method: 'POST' });
 }
