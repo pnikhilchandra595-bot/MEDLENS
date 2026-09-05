@@ -4,6 +4,8 @@
   "private": true,
   "description": "MedLens - Clinical Laboratory Report Intelligence, Provenance, Temporal Tracking & Patient Communication Platform",
   "scripts": {
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run preview",
     "dev:backend": "cd backend && python main.py",
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
