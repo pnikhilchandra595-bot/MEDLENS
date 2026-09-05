@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "MedLens - Clinical Laboratory Report Intelligence, Provenance, Temporal Tracking & Patient Communication Platform",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend run preview",
