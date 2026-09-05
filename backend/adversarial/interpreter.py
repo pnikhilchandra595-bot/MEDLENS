@@ -149,7 +149,7 @@ class AdversarialInterpreter:
         self, extracted_results: List[Dict[str, Any]], temporal_analysis: Optional[Dict[str, Any]], language: str
     ) -> str:
         # Build prompt or use deterministic localized template
-        if self.api_key:
+        if self.api_key and not os.environ.get("PYTEST_CURRENT_TEST"):
             try:
                 import google.generativeai as genai
 
@@ -178,7 +178,7 @@ class AdversarialInterpreter:
                 ]:
                     try:
                         model = genai.GenerativeModel(model_name)
-                        resp = model.generate_content(prompt)
+                        resp = model.generate_content(prompt, request_options={"timeout": 3.0})
                         if resp.text and len(resp.text.strip()) > 10:
                             candidate_text = resp.text.strip()
                             # Apply strict output-side safety blocklist validation
@@ -230,7 +230,7 @@ class AdversarialInterpreter:
         Provides 2 alternative, non-diagnostic explanations for observed shifts
         (hydration, fasting status, diurnal variation, recent physical stress).
         """
-        if self.api_key:
+        if self.api_key and not os.environ.get("PYTEST_CURRENT_TEST"):
             try:
                 import google.generativeai as genai
 
@@ -249,7 +249,7 @@ class AdversarialInterpreter:
                 ]:
                     try:
                         model = genai.GenerativeModel(model_name)
-                        resp = model.generate_content(prompt)
+                        resp = model.generate_content(prompt, request_options={"timeout": 3.0})
                         text = resp.text.strip()
                         if text.startswith("```json"):
                             text = text[7:]

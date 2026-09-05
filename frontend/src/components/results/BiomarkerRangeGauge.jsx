@@ -23,9 +23,9 @@ export default function BiomarkerRangeGauge({
   if (refLow === null && refHigh === null) {
     return (
       <div className="py-2">
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center justify-between text-xs text-slate-500">
           <span>Reference: {refRaw || 'Qualitative evaluation'}</span>
-          <span className={`px-2 py-0.5 rounded-full font-medium ${isAbnormal ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+          <span className={`px-2 py-0.5 rounded-full font-semibold ${isAbnormal ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-teal-50 text-teal-700 border border-teal-200'}`}>
             {isAbnormal ? 'Out of Range' : 'Normal / Negative'}
           </span>
         </div>
@@ -52,10 +52,10 @@ export default function BiomarkerRangeGauge({
   const isLow = refLow !== null && value < refLow;
   const isHigh = refHigh !== null && value > refHigh;
   const indicatorColor = isAbnormal || isLow || isHigh
-    ? 'bg-rose-500 text-rose-300 border-rose-400'
+    ? 'bg-rose-600 text-white border-white ring-2 ring-rose-500/40'
     : isBorderline
-    ? 'bg-amber-500 text-amber-300 border-amber-400'
-    : 'bg-teal-500 text-teal-200 border-teal-300';
+    ? 'bg-amber-500 text-white border-white ring-2 ring-amber-500/40'
+    : 'bg-teal-600 text-white border-white ring-2 ring-teal-500/40';
 
   return (
     <div className="w-full pt-6 pb-2 px-1">
@@ -65,8 +65,8 @@ export default function BiomarkerRangeGauge({
           className="absolute -translate-x-1/2 flex flex-col items-center transition-all duration-300"
           style={{ left: `${valPct}%` }}
         >
-          <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap px-1.5 py-0.5 rounded shadow-sm ${
-            isAbnormal ? 'text-rose-400' : isBorderline ? 'text-amber-400' : 'text-teal-400'
+          <span className={`text-[11px] font-bold tracking-tight whitespace-nowrap px-2 py-0.5 rounded shadow-sm border ${
+            isAbnormal ? 'text-rose-700 bg-rose-50 border-rose-200' : isBorderline ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-teal-700 bg-teal-50 border-teal-200'
           }`}>
             {value} {unit}
           </span>
@@ -74,10 +74,10 @@ export default function BiomarkerRangeGauge({
       </div>
 
       {/* 3-Zone Range Bar */}
-      <div className="relative h-2 w-full rounded-full bg-slate-800 flex items-center shadow-inner overflow-visible">
+      <div className="relative h-2.5 w-full rounded-full bg-slate-200 flex items-center shadow-inner overflow-visible">
         {/* Left Out-of-Range Zone (Red) */}
         <div
-          className="h-full bg-rose-500/80 rounded-l-full"
+          className="h-full bg-rose-400 rounded-l-full"
           style={{ width: `${lowPct}%` }}
         />
         
@@ -89,7 +89,7 @@ export default function BiomarkerRangeGauge({
 
         {/* Right Out-of-Range Zone (Red) */}
         <div
-          className="h-full bg-rose-500/80 rounded-r-full flex-1"
+          className="h-full bg-rose-400 rounded-r-full flex-1"
         />
 
         {/* Moving Indicator Pin Circle */}
@@ -100,10 +100,10 @@ export default function BiomarkerRangeGauge({
       </div>
 
       {/* Numerical Boundary Labels Below Bar */}
-      <div className="relative w-full h-5 mt-1.5 text-[11px] font-medium text-slate-400">
+      <div className="relative w-full h-5 mt-1.5 text-[11px] font-semibold text-slate-500">
         {refLow !== null && (
           <span
-            className="absolute -translate-x-1/2 text-slate-400 font-mono"
+            className="absolute -translate-x-1/2 text-slate-600 font-mono"
             style={{ left: `${lowPct}%` }}
           >
             {refLow}
@@ -111,7 +111,7 @@ export default function BiomarkerRangeGauge({
         )}
         {refHigh !== null && (
           <span
-            className="absolute -translate-x-1/2 text-slate-400 font-mono"
+            className="absolute -translate-x-1/2 text-slate-600 font-mono"
             style={{ left: `${highPct}%` }}
           >
             {refHigh}

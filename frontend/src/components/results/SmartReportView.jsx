@@ -106,18 +106,18 @@ export default function SmartReportView({
   return (
     <div className="space-y-6">
       {/* Subheader Matching Screenshot #1 & #4 */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         {/* Left: Report Date */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-400">Report Date:</span>
-          <span className="text-sm font-bold text-slate-100 bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700/60">
+          <span className="text-xs font-semibold text-slate-500">Report Date:</span>
+          <span className="text-sm font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
             {reportDateFormatted}
           </span>
         </div>
 
         {/* Right: Out Of Range Only Switch Toggle */}
         <div className="flex items-center gap-3">
-          <label htmlFor="out-of-range-toggle" className="text-xs font-semibold text-slate-300 cursor-pointer select-none">
+          <label htmlFor="out-of-range-toggle" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
             Out Of Range Only
           </label>
           <button
@@ -126,8 +126,8 @@ export default function SmartReportView({
             role="switch"
             aria-checked={outOfRangeOnly}
             onClick={() => setOutOfRangeOnly(!outOfRangeOnly)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-              outOfRangeOnly ? 'bg-rose-500' : 'bg-slate-700'
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white shadow-2xs ${
+              outOfRangeOnly ? 'bg-rose-500' : 'bg-slate-300'
             }`}
           >
             <span
@@ -140,16 +140,16 @@ export default function SmartReportView({
       </div>
 
       {/* Parameter Stats Bar Matching Screenshot #1 */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl py-3 px-5 flex items-center justify-center gap-4 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-        <div className="flex items-center gap-2 text-teal-400">
-          <CheckCircle2 className="w-4 h-4 text-teal-400" aria-hidden="true" />
+      <div className="bg-white border border-slate-200/90 rounded-2xl py-3.5 px-6 flex items-center justify-center gap-6 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+        <div className="flex items-center gap-2 text-teal-700">
+          <CheckCircle2 className="w-4 h-4 text-teal-600" aria-hidden="true" />
           <span>In Range: <span className="font-extrabold">{inRangeCount} parameters</span></span>
         </div>
 
-        <span className="text-slate-600 font-normal">|</span>
+        <span className="text-slate-300 font-normal">|</span>
 
-        <div className="flex items-center gap-2 text-rose-400">
-          <AlertTriangle className="w-4 h-4 text-rose-400" aria-hidden="true" />
+        <div className="flex items-center gap-2 text-rose-700">
+          <AlertTriangle className="w-4 h-4 text-rose-600" aria-hidden="true" />
           <span>Out Of Range: <span className="font-extrabold">{outOfRangeCount} parameters</span></span>
         </div>
       </div>
@@ -157,20 +157,20 @@ export default function SmartReportView({
       {/* Search & Collapse Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search biomarkers (e.g. Hemoglobin, TSH, Iron)..."
-            className="w-full bg-slate-900/80 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:border-emerald-500"
+            className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 shadow-2xs"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
               aria-label="Clear search query"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
             >
               ✕
             </button>
@@ -181,14 +181,14 @@ export default function SmartReportView({
           <button
             type="button"
             onClick={expandAll}
-            className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-200 transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             Expand All Panels
           </button>
           <button
             type="button"
             onClick={collapseAll}
-            className="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-200 transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             Collapse All
           </button>
@@ -198,9 +198,9 @@ export default function SmartReportView({
       {/* Categorized Test Panel Accordions Matching Screenshot #4 */}
       <div className="space-y-4">
         {Object.keys(filteredCategories).length === 0 ? (
-          <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-2xl space-y-2">
-            <Layers className="w-10 h-10 text-slate-600 mx-auto" aria-hidden="true" />
-            <h3 className="text-sm font-bold text-slate-300">No Parameters Match Filter</h3>
+          <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl space-y-2 shadow-sm">
+            <Layers className="w-10 h-10 text-slate-400 mx-auto" aria-hidden="true" />
+            <h3 className="text-sm font-bold text-slate-800">No Parameters Match Filter</h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               {outOfRangeOnly
                 ? 'All parameters in this report are within physiological reference ranges.'
@@ -215,41 +215,41 @@ export default function SmartReportView({
             return (
               <div
                 key={categoryName}
-                className="bg-slate-900/60 border border-slate-800/90 rounded-2xl overflow-hidden shadow-sm transition-all"
+                className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-sm transition-all"
               >
                 {/* Accordion Panel Header */}
                 <button
                   type="button"
                   onClick={() => toggleCategory(categoryName)}
-                  className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left hover:bg-slate-800/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded-2xl"
+                  className="w-full px-5 py-4 flex items-center justify-between gap-4 text-left bg-slate-50/70 hover:bg-slate-100/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white rounded-2xl"
                   aria-expanded={isCategoryExpanded}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-base sm:text-lg font-bold text-slate-100 font-display">
+                    <span className="text-base sm:text-lg font-extrabold text-slate-900 font-display">
                       {categoryName}
                     </span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-200/80 text-slate-700 border border-slate-300 font-semibold">
                       {items.length} {items.length === 1 ? 'parameter' : 'parameters'}
                     </span>
                     {categoryAbnormalCount > 0 && (
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 font-bold">
                         {categoryAbnormalCount} out of range
                       </span>
                     )}
                   </div>
 
-                  <div className="text-slate-400">
+                  <div className="text-slate-500">
                     {isCategoryExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-slate-400" aria-hidden="true" />
+                      <ChevronUp className="w-5 h-5 text-slate-600" aria-hidden="true" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-slate-400" aria-hidden="true" />
+                      <ChevronDown className="w-5 h-5 text-slate-600" aria-hidden="true" />
                     )}
                   </div>
                 </button>
 
                 {/* Expanded Category Analyte Cards */}
                 {isCategoryExpanded && (
-                  <div className="p-4 sm:p-5 pt-0 grid grid-cols-1 gap-4 border-t border-slate-800/60 mt-1">
+                  <div className="p-4 sm:p-5 pt-3 grid grid-cols-1 gap-4 border-t border-slate-100 bg-slate-50/30">
                     {items.map((result) => (
                       <SmartAnalyteCard
                         key={result.id}

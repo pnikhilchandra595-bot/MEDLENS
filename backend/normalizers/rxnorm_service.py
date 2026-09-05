@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import requests
@@ -173,11 +174,12 @@ class RxNormService:
                 self._cache[cleaned] = result
                 return result
 
-        # 2. Query Live NLM RxNorm API
-        live_result = self._lookup_live_rxnorm(drug_query)
-        if live_result and live_result.get("is_recognized"):
-            self._cache[cleaned] = live_result
-            return live_result
+        # 2. Query Live NLM RxNorm API (if not running in test runner)
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            live_result = self._lookup_live_rxnorm(drug_query)
+            if live_result and live_result.get("is_recognized"):
+                self._cache[cleaned] = live_result
+                return live_result
 
         # Fallback
         fallback = {

@@ -79,8 +79,8 @@ export default function BiomarkerHistoryGraph({
   const pointsString = validHistory.map((h, i) => `${getX(i)},${getY(h.value)}`).join(' ');
 
   return (
-    <div className="w-full bg-slate-950/60 rounded-xl p-3 border border-slate-800/80">
-      <div className="text-center text-xs font-semibold text-slate-300 mb-2">
+    <div className="w-full bg-slate-50 rounded-xl p-3 border border-slate-200/90 shadow-inner">
+      <div className="text-center text-xs font-semibold text-slate-700 mb-2">
         Comparison graph in {unit || 'units'}
       </div>
 
@@ -92,7 +92,7 @@ export default function BiomarkerHistoryGraph({
           <defs>
             {/* Grid line pattern */}
             <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+              <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="1" />
             </pattern>
           </defs>
 
@@ -106,7 +106,7 @@ export default function BiomarkerHistoryGraph({
               y={Math.min(yBorderlineTop, yBorderlineBottom)}
               width={chartW}
               height={Math.abs(yBorderlineBottom - yBorderlineTop)}
-              fill="rgba(245, 158, 11, 0.12)"
+              fill="rgba(245, 158, 11, 0.15)"
               rx="4"
             />
           )}
@@ -118,7 +118,7 @@ export default function BiomarkerHistoryGraph({
               y={Math.min(yNormalMax, yNormalMin)}
               width={chartW}
               height={Math.abs(yNormalMin - yNormalMax)}
-              fill="rgba(16, 185, 129, 0.2)"
+              fill="rgba(16, 185, 129, 0.18)"
               rx="2"
             />
           )}
@@ -131,17 +131,17 @@ export default function BiomarkerHistoryGraph({
                 y1={yNormalMax}
                 x2={padLeft + chartW}
                 y2={yNormalMax}
-                stroke="#10b981"
+                stroke="#059669"
                 strokeWidth="1.2"
                 strokeDasharray="4 3"
-                opacity="0.8"
+                opacity="0.9"
               />
               <text
                 x={padLeft + 8}
                 y={yNormalMax - 4}
-                fill="#10b981"
+                fill="#047857"
                 fontSize="10"
-                fontWeight="600"
+                fontWeight="700"
                 fontFamily="sans-serif"
               >
                 Normal Max ({refHigh})
@@ -157,17 +157,17 @@ export default function BiomarkerHistoryGraph({
                 y1={yNormalMin}
                 x2={padLeft + chartW}
                 y2={yNormalMin}
-                stroke="#10b981"
+                stroke="#059669"
                 strokeWidth="1.2"
                 strokeDasharray="4 3"
-                opacity="0.8"
+                opacity="0.9"
               />
               <text
                 x={padLeft + 8}
                 y={yNormalMin + 12}
-                fill="#10b981"
+                fill="#047857"
                 fontSize="10"
-                fontWeight="600"
+                fontWeight="700"
                 fontFamily="sans-serif"
               >
                 Normal Min ({refLow})
@@ -177,14 +177,14 @@ export default function BiomarkerHistoryGraph({
 
           {/* Y-Axis Ticks & Labels */}
           <g className="text-[10px] text-slate-500 font-mono">
-            <line x1={padLeft} y1={padTop} x2={padLeft} y2={padTop + chartH} stroke="rgba(255,255,255,0.1)" />
-            <text x={padLeft - 6} y={padTop + 8} textAnchor="end" fill="#94a3b8" fontSize="9" fontFamily="monospace">
+            <line x1={padLeft} y1={padTop} x2={padLeft} y2={padTop + chartH} stroke="rgba(0,0,0,0.15)" />
+            <text x={padLeft - 6} y={padTop + 8} textAnchor="end" fill="#64748b" fontSize="9" fontFamily="monospace">
               {yMax.toFixed(1)}
             </text>
-            <text x={padLeft - 6} y={padTop + chartH / 2} textAnchor="end" fill="#94a3b8" fontSize="9" fontFamily="monospace">
+            <text x={padLeft - 6} y={padTop + chartH / 2} textAnchor="end" fill="#64748b" fontSize="9" fontFamily="monospace">
               {((yMax + yMin) / 2).toFixed(1)}
             </text>
-            <text x={padLeft - 6} y={padTop + chartH} textAnchor="end" fill="#94a3b8" fontSize="9" fontFamily="monospace">
+            <text x={padLeft - 6} y={padTop + chartH} textAnchor="end" fill="#64748b" fontSize="9" fontFamily="monospace">
               {yMin.toFixed(1)}
             </text>
           </g>
@@ -192,7 +192,7 @@ export default function BiomarkerHistoryGraph({
           {/* Trend Polyline */}
           <polyline
             fill="none"
-            stroke="#f97316"
+            stroke="#ea580c"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -205,7 +205,7 @@ export default function BiomarkerHistoryGraph({
             const cy = getY(h.value);
             const isAbn = h.is_abnormal || (refLow !== null && h.value < refLow) || (refHigh !== null && h.value > refHigh);
             const isBorder = h.is_borderline;
-            const dotFill = isAbn ? '#f43f5e' : isBorder ? '#f59e0b' : '#10b981';
+            const dotFill = isAbn ? '#e11d48' : isBorder ? '#d97706' : '#059669';
 
             return (
               <g
@@ -239,9 +239,9 @@ export default function BiomarkerHistoryGraph({
                   y={padTop + chartH + 18}
                   textAnchor="end"
                   transform={`rotate(-35, ${cx}, ${padTop + chartH + 18})`}
-                  fill="#94a3b8"
+                  fill="#475569"
                   fontSize="9.5"
-                  fontWeight="500"
+                  fontWeight="600"
                   fontFamily="sans-serif"
                 >
                   {h.date}
@@ -254,10 +254,10 @@ export default function BiomarkerHistoryGraph({
 
       {/* Hovered Tooltip Badge */}
       {hoveredPoint && (
-        <div className="mt-2 text-center text-xs py-1 px-3 bg-slate-900 border border-slate-700 rounded-lg text-slate-200">
-          <span className="font-semibold text-slate-400">{hoveredPoint.date}: </span>
+        <div className="mt-2 text-center text-xs py-1.5 px-3 bg-white border border-slate-200 shadow-sm rounded-lg text-slate-800">
+          <span className="font-semibold text-slate-600">{hoveredPoint.date}: </span>
           <span className={`font-bold ${
-            hoveredPoint.is_abnormal ? 'text-rose-400' : hoveredPoint.is_borderline ? 'text-amber-400' : 'text-emerald-400'
+            hoveredPoint.is_abnormal ? 'text-rose-600' : hoveredPoint.is_borderline ? 'text-amber-600' : 'text-teal-700'
           }`}>
             {hoveredPoint.value} {unit}
           </span>
@@ -266,18 +266,18 @@ export default function BiomarkerHistoryGraph({
       )}
 
       {/* Legend Matching User Screenshots */}
-      <div className="flex items-center justify-center gap-6 mt-3 pt-2 border-t border-slate-800/60 text-xs">
+      <div className="flex items-center justify-center gap-6 mt-3 pt-2 border-t border-slate-200 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-emerald-400 inline-block shadow-sm" />
-          <span className="text-slate-300 font-medium">In Range</span>
+          <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block shadow-sm" />
+          <span className="text-slate-700 font-medium">In Range</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block shadow-sm" />
-          <span className="text-slate-300 font-medium">Borderline</span>
+          <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block shadow-sm" />
+          <span className="text-slate-700 font-medium">Borderline</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-rose-500 inline-block shadow-sm" />
-          <span className="text-slate-300 font-medium">Out of Range</span>
+          <span className="w-3 h-3 rounded-sm bg-rose-600 inline-block shadow-sm" />
+          <span className="text-slate-700 font-medium">Out of Range</span>
         </div>
       </div>
     </div>

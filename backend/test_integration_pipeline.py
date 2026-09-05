@@ -19,7 +19,9 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         init_db()
         cls.db = SessionLocal()
         seed_sample_database(cls.db)
-        cls.client = TestClient(app)
+
+    def setUp(self):
+        self.client = TestClient(app)
 
     @classmethod
     def tearDownClass(cls):
@@ -73,7 +75,7 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
         patients = reports_resp.json()
         self.assertGreater(len(patients), 0)
 
-        target_patient = patients[0]
+        target_patient = next((p for p in patients if p.get("reports_count", 0) > 0), patients[0])
         patient_reports = self.client.get(f"/api/patients/{target_patient['id']}/reports").json()
         self.assertGreater(len(patient_reports), 0)
 
@@ -93,8 +95,10 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
 
     def test_05_hitl_correction_workflow_with_mandatory_auth(self):
         # 1. Unauthenticated request must return 401
-        patient = self.db.query(Patient).first()
-        report = self.db.query(Report).filter(Report.patient_id == patient.id).first()
+        report = self.db.query(Report).filter(Report.test_results.any()).first()
+        self.assertIsNotNone(report)
+        patient = self.db.query(Patient).filter(Patient.id == report.patient_id).first()
+        self.assertIsNotNone(patient)
         test_res = report.test_results[0]
 
         unauth_resp = self.client.post(
@@ -128,16 +132,16 @@ class TestMedLensIntegrationAndSecurity(unittest.TestCase):
 
     def test_06_unauthorized_token_rejected_with_403(self):
         # Attempt to correct with a token belonging to another patient
-        patient1 = self.db.query(Patient).first()
-        reports = self.db.query(Report).filter(Report.patient_id == patient1.id).first()
+        report = self.db.query(Report).filter(Report.test_results.any()).first()
+        self.assertIsNotNone(report)
 
         # Token for fraudulent patient
         fake_token = generate_session_token("pat-fraudulent-attacker")
         resp = self.client.post(
-            f"/api/reports/{reports.id}/correct-result",
+            f"/api/reports/{report.id}/correct-result",
             headers={"Authorization": f"Bearer {fake_token}"},
             json={
-                "result_id": reports.test_results[0].id,
+                "result_id": report.test_results[0].id,
                 "corrected_value": 99.9,
                 "correction_reason": "Malicious tampering",
             },

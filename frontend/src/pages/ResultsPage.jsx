@@ -156,14 +156,14 @@ export default function ResultsPage({
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-2xl border flex items-center justify-between text-xs font-semibold animate-in fade-in ${
+          className={`p-4 rounded-2xl border flex items-center justify-between text-xs font-semibold animate-in fade-in shadow-lg ${
             notification.type === 'success'
-              ? 'bg-emerald-950/90 border-emerald-500 text-emerald-200 shadow-xl shadow-emerald-950'
-              : 'bg-rose-950/90 border-rose-500 text-rose-200 shadow-xl shadow-rose-950'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+              : 'bg-rose-50 border-rose-300 text-rose-900'
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" aria-hidden="true" />
+            <CheckCircle2 className={`w-5 h-5 ${notification.type === 'success' ? 'text-emerald-600' : 'text-rose-600'}`} aria-hidden="true" />
             <span>{notification.message}</span>
           </div>
         </div>
@@ -172,8 +172,8 @@ export default function ResultsPage({
       {/* Top Patient Title Bar Matching Screenshot #1 */}
       <div className="flex items-center justify-between gap-4 pt-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-100 font-display flex items-center gap-2">
-            <span className="text-emerald-400 font-mono text-lg">‹</span>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 font-display flex items-center gap-2">
+            <span className="text-emerald-600 font-mono text-lg font-bold">‹</span>
             <span>{reportData.patient?.name || 'Patient'}&apos;s Report</span>
           </h1>
         </div>
@@ -184,7 +184,7 @@ export default function ResultsPage({
             <button
               type="button"
               onClick={onExportPdf}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors shadow-sm"
+              className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               title="Download Clinical Summary PDF"
               aria-label="Download Clinical Summary PDF"
             >
@@ -195,7 +195,7 @@ export default function ResultsPage({
           <button
             type="button"
             onClick={() => setIsWhatsAppOpen(true)}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-emerald-400 hover:border-emerald-500/50 transition-colors shadow-sm"
+            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-emerald-700 hover:border-emerald-300 transition-colors shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             title="Share via WhatsApp"
             aria-label="Share via WhatsApp"
           >
@@ -205,43 +205,43 @@ export default function ResultsPage({
       </div>
 
       {/* Segmented View Switcher Tabs Matching User Photos */}
-      <div className="bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800 flex items-center justify-center gap-1.5 shadow-md">
+      <div className="bg-slate-200/80 p-1.5 rounded-2xl border border-slate-300/80 flex items-center justify-center gap-1.5 shadow-inner">
         <button
           type="button"
           onClick={() => setActiveSubView('smart')}
-          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
             activeSubView === 'smart'
-              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-300/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
           }`}
         >
-          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <Sparkles className={`w-4 h-4 ${activeSubView === 'smart' ? 'text-emerald-600' : 'text-slate-500'}`} aria-hidden="true" />
           <span>Smart Report</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubView('summary')}
-          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
             activeSubView === 'summary'
-              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-300/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
           }`}
         >
-          <Activity className="w-4 h-4" aria-hidden="true" />
+          <Activity className={`w-4 h-4 ${activeSubView === 'summary' ? 'text-emerald-600' : 'text-slate-500'}`} aria-hidden="true" />
           <span>Health Summary</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveSubView('ocr')}
-          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
+          className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
             activeSubView === 'ocr'
-              ? 'bg-[#0f4c81] text-white shadow-lg shadow-blue-950/60 ring-1 ring-blue-400/40'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-300/80'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
           }`}
         >
-          <FileCheck className="w-4 h-4" aria-hidden="true" />
+          <FileCheck className={`w-4 h-4 ${activeSubView === 'ocr' ? 'text-emerald-600' : 'text-slate-500'}`} aria-hidden="true" />
           <span>Document OCR View</span>
         </button>
       </div>

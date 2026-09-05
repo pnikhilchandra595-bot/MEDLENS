@@ -11,12 +11,12 @@ export default function ClinicianPdfTemplate({ reportData, onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 sm:p-8">
+    <div className="min-h-screen bg-slate-100 text-slate-900 p-4 sm:p-8">
       {/* Top action bar (hidden during print) */}
       <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold border border-slate-300 text-sm transition-colors shadow-2xs"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </button>

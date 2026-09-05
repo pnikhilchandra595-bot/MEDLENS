@@ -130,11 +130,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
       {/* Skip to Content Link for Keyboard / Screen Reader Accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-400 focus:text-slate-950 focus:font-bold focus:rounded-xl focus:shadow-2xl focus:ring-2 focus:ring-emerald-300"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-600 focus:text-white focus:font-bold focus:rounded-xl focus:shadow-2xl focus:ring-2 focus:ring-emerald-400"
       >
         Skip to main content
       </a>
@@ -192,17 +192,17 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-200 bg-white/90 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            <strong>MedLens Platform</strong> • Clinical Laboratory Intelligence & Temporal Patient Memory
+            <strong className="text-slate-700">MedLens Platform</strong> • Clinical Laboratory Intelligence & Temporal Patient Memory
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>HL7 FHIR R4 Ready</span>
+          <div className="flex items-center gap-3 text-slate-500 font-medium">
+            <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px]">HL7 FHIR R4 Ready</span>
             <span>•</span>
-            <span>ABDM India NRCeS Ready</span>
+            <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[11px]">ABDM India NRCeS</span>
             <span>•</span>
-            <span>DPDP Act 2023 Compliant</span>
+            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[11px]">DPDP Act 2023</span>
           </div>
         </div>
       </footer>

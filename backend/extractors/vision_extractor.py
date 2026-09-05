@@ -217,7 +217,7 @@ class VisionExtractionEngine:
         extraction_mode = "demo_fallback"
         extraction_warning = None
 
-        if self.api_key:
+        if self.api_key and not os.environ.get("PYTEST_CURRENT_TEST"):
             try:
                 extracted_data = self._extract_with_gemini(file_bytes, file_name)
                 if extracted_data and extracted_data.get("results"):
@@ -308,7 +308,10 @@ class VisionExtractionEngine:
         else:
             payload_bytes, mime_type = optimize_image_for_vision(file_bytes, max_dim=2048)
 
-        response = model.generate_content([{"mime_type": mime_type, "data": payload_bytes}, prompt])
+        response = model.generate_content(
+            [{"mime_type": mime_type, "data": payload_bytes}, prompt],
+            request_options={"timeout": 5.0},
+        )
         text = response.text.strip()
         if text.startswith("```json"):
             text = text[7:]

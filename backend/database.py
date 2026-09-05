@@ -1,28 +1,38 @@
 import os
+import sys
 from datetime import datetime, timezone
 
-# Load .env file if present
-env_paths = [
-    os.path.join(os.path.dirname(__file__), ".env"),
-    os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
-]
-for ep in env_paths:
-    if os.path.exists(ep):
-        with open(ep, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    if k.strip() not in os.environ:
-                        os.environ[k.strip()] = v.strip()
+is_testing = (
+    "pytest" in sys.modules
+    or os.environ.get("PYTEST_CURRENT_TEST")
+    or os.environ.get("MEDLENS_TESTING") == "1"
+    or any("pytest" in str(arg).lower() for arg in sys.argv)
+)
+
+# Load .env file if present (skip in test environment to avoid overriding local sqlite)
+if not is_testing:
+    env_paths = [
+        os.path.join(os.path.dirname(__file__), ".env"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),
+    ]
+    for ep in env_paths:
+        if os.path.exists(ep):
+            with open(ep, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        if k.strip() not in os.environ:
+                            os.environ[k.strip()] = v.strip()
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, create_engine
 from sqlalchemy import text as db_text
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
+if is_testing or not os.environ.get("DATABASE_URL"):
     DB_PATH = os.environ.get("MEDLENS_DB_PATH", os.path.join(os.path.dirname(__file__), "medlens.db"))
     DATABASE_URL = f"sqlite:///{DB_PATH}"
+else:
+    DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)

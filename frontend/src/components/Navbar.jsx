@@ -23,7 +23,7 @@ export default function Navbar({
   onReseed
 }) {
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-sm transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
@@ -34,32 +34,33 @@ export default function Navbar({
             onClick={() => setActiveTab('results')}
             aria-label="Go to MedLens results dashboard"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-1 ring-white/20">
-              <Activity className="w-6 h-6 text-slate-950 stroke-[2.5]" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-md shadow-emerald-500/20 ring-1 ring-emerald-600/30">
+              <Activity className="w-6 h-6 text-white stroke-[2.5]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent font-display">
+                <span className="text-xl font-bold tracking-tight text-slate-900 font-display">
                   MedLens
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   FHIR R4 • ABDM Ready
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-normal">
+              <p className="text-[11px] text-slate-500 font-medium">
                 Clinical Report Intelligence & Patient Memory
               </p>
             </div>
           </button>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 text-xs font-medium">
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200 text-xs font-medium">
             <button
+              type="button"
               onClick={() => setActiveTab('upload')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                 activeTab === 'upload'
-                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <UploadCloud className="w-3.5 h-3.5" />
@@ -67,11 +68,12 @@ export default function Navbar({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('results')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                 activeTab === 'results'
-                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
@@ -79,11 +81,12 @@ export default function Navbar({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('timeline')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                 activeTab === 'timeline'
-                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <TrendingUp className="w-3.5 h-3.5" />
@@ -91,11 +94,12 @@ export default function Navbar({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('settings')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                 activeTab === 'settings'
-                  ? 'bg-emerald-500 text-slate-950 font-semibold shadow-md shadow-emerald-500/20'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
@@ -103,11 +107,12 @@ export default function Navbar({
             </button>
 
             <button
+              type="button"
               onClick={() => setActiveTab('pitch')}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
                 activeTab === 'pitch'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/40 border border-emerald-500/20'
+                  ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold shadow-sm'
+                  : 'text-emerald-700 hover:text-emerald-800 bg-emerald-50/80 hover:bg-emerald-100 border border-emerald-200'
               }`}
             >
               <Presentation className="w-3.5 h-3.5" />
@@ -119,47 +124,50 @@ export default function Navbar({
           <div className="flex items-center gap-2">
             
             {/* Patient Switcher */}
-            <div className="relative flex items-center bg-slate-800/80 rounded-lg border border-slate-700/80 px-2 py-1 text-xs">
-              <User className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
+            <div className="relative flex items-center bg-slate-100/90 rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs shadow-2xs">
+              <User className="w-3.5 h-3.5 text-emerald-600 mr-1.5" />
               <select
                 value={selectedPatientId || ''}
                 onChange={(e) => onSelectPatient(e.target.value)}
                 aria-label="Select Patient Profile"
-                className="bg-transparent text-slate-200 focus:outline-none cursor-pointer text-xs pr-2"
+                className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer text-xs pr-2"
               >
                 {patients.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-slate-900 text-slate-200">
+                  <option key={p.id} value={p.id} className="bg-white text-slate-800">
                     {p.name} ({p.reports_count || 0} reports)
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Language Toggle (Phase 7 Localization) */}
-            <div className="flex items-center bg-slate-800/80 rounded-lg border border-slate-700/80 p-0.5 text-xs">
-              <span className="px-1 text-slate-400">
+            {/* Language Toggle */}
+            <div className="flex items-center bg-slate-100/90 rounded-xl border border-slate-300 p-0.5 text-xs">
+              <span className="px-1 text-slate-500">
                 <Globe className="w-3 h-3" />
               </span>
               <button
+                type="button"
                 onClick={() => setLanguage('en')}
-                className={`px-1.5 py-0.5 rounded transition-all ${
-                  language === 'en' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                className={`px-1.5 py-0.5 rounded-lg transition-all ${
+                  language === 'en' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 EN
               </button>
               <button
+                type="button"
                 onClick={() => setLanguage('hi')}
-                className={`px-1.5 py-0.5 rounded transition-all ${
-                  language === 'hi' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                className={`px-1.5 py-0.5 rounded-lg transition-all ${
+                  language === 'hi' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 हिन्दी
               </button>
               <button
+                type="button"
                 onClick={() => setLanguage('te')}
-                className={`px-1.5 py-0.5 rounded transition-all ${
-                  language === 'te' ? 'bg-emerald-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
+                className={`px-1.5 py-0.5 rounded-lg transition-all ${
+                  language === 'te' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 తెలుగు
@@ -168,9 +176,11 @@ export default function Navbar({
 
             {/* Reseed Demo Data */}
             <button
+              type="button"
               onClick={onReseed}
               title="Reset and reseed demo datasets"
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 transition-colors"
+              aria-label="Reset and reseed demo datasets"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-emerald-700 border border-slate-300 transition-colors shadow-2xs"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>

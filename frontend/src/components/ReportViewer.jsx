@@ -82,19 +82,19 @@ export default function ReportViewer({
     <section 
       aria-label="Laboratory Document Viewer" 
       role="region" 
-      className="flex flex-col h-full bg-slate-900/60 rounded-xl border border-slate-800 overflow-hidden"
+      className="flex flex-col h-full bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden"
     >
       {/* Viewer Header */}
-      <header className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800 text-xs">
+      <header className="flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-200 text-xs">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-slate-200">Laboratory Document</span>
+          <span className="font-bold text-slate-900 font-display">Laboratory Document</span>
           {sha256Hash && (
             <span 
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono text-[10px]"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[10px] font-semibold"
               title={`SHA-256 Tamper-Evidence: ${sha256Hash}`}
               aria-label={`SHA-256 Verification Hash: ${sha256Hash}`}
             >
-              <ShieldCheck className="w-3 h-3" aria-hidden="true" />
+              <ShieldCheck className="w-3 h-3 text-emerald-600" aria-hidden="true" />
               <span>SHA-256: {sha256Hash.substring(0, 8)}...</span>
             </span>
           )}
@@ -103,13 +103,13 @@ export default function ReportViewer({
         <div className="flex items-center gap-2">
           {/* Grounding Counter Badges */}
           <div className="flex items-center gap-2 mr-2 text-[11px]" aria-live="polite">
-            <span className="flex items-center gap-1 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" aria-hidden="true"></span>
+            <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true"></span>
               {groundedCount} Grounded
             </span>
             {unconfirmedCount > 0 && (
-              <span className="flex items-center gap-1 text-amber-400/80">
-                <MapPinOff className="w-3 h-3" aria-hidden="true" />
+              <span className="flex items-center gap-1 text-amber-700 font-semibold">
+                <MapPinOff className="w-3 h-3 text-amber-600" aria-hidden="true" />
                 {unconfirmedCount} Unconfirmed
               </span>
             )}
@@ -117,23 +117,23 @@ export default function ReportViewer({
 
           {/* Zoom Controls (Active for image mode) */}
           {isImageFile && (
-            <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700" role="toolbar" aria-label="Zoom controls">
+            <div className="flex items-center bg-white rounded-lg p-0.5 border border-slate-300 shadow-sm" role="toolbar" aria-label="Zoom controls">
               <button
                 type="button"
                 onClick={handleZoomOut}
-                className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                className="p-1 hover:text-slate-900 text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
                 title="Zoom Out"
                 aria-label="Zoom Out"
               >
                 <ZoomOut className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
-              <span className="px-1.5 text-[11px] font-mono text-slate-300 min-w-[40px] text-center" aria-live="polite">
+              <span className="px-1.5 text-[11px] font-mono text-slate-700 min-w-[40px] text-center font-bold" aria-live="polite">
                 {Math.round(zoom * 100)}%
               </span>
               <button
                 type="button"
                 onClick={handleZoomIn}
-                className="p-1 hover:text-white text-slate-400 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                className="p-1 hover:text-slate-900 text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
                 title="Zoom In"
                 aria-label="Zoom In"
               >
@@ -142,7 +142,7 @@ export default function ReportViewer({
               <button
                 type="button"
                 onClick={handleResetZoom}
-                className="p-1 hover:text-white text-slate-400 border-l border-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
+                className="p-1 hover:text-slate-900 text-slate-500 border-l border-slate-200 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 rounded"
                 title="Reset Zoom"
                 aria-label="Reset Zoom"
               >
@@ -157,7 +157,7 @@ export default function ReportViewer({
       <div 
         tabIndex={0}
         aria-label="Scrollable Document Canvas"
-        className="relative flex-1 overflow-auto p-4 bg-slate-950/80 flex items-start justify-center min-h-[450px] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+        className="relative flex-1 overflow-auto p-4 bg-slate-100/70 flex items-start justify-center min-h-[450px] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
       >
         <div
           style={{ transform: isImageFile ? `scale(${zoom})` : 'none', transformOrigin: 'top center' }}
@@ -165,7 +165,7 @@ export default function ReportViewer({
         >
           {/* View Mode 1: Real Scanned Document Image with Grounded SVG Bounding Box Overlays */}
           {isImageFile ? (
-            <div className="relative rounded-lg overflow-hidden shadow-2xl border border-slate-800 bg-black">
+            <div className="relative rounded-lg overflow-hidden shadow-xl border border-slate-300 bg-white">
               <img
                 src={resolvedFileUrl}
                 alt={`Clinical laboratory diagnostic report scan for ${patientName}`}
@@ -226,10 +226,10 @@ export default function ReportViewer({
                         ry={6}
                         className={`transition-all duration-150 ${
                           isSelected
-                            ? 'stroke-emerald-400 stroke-[3] fill-emerald-500/25'
+                            ? 'stroke-emerald-600 stroke-[3] fill-emerald-500/25'
                             : res.is_abnormal
-                            ? 'stroke-rose-500/80 stroke-[1.5] fill-rose-500/10 hover:fill-rose-500/20'
-                            : 'stroke-emerald-500/60 stroke-[1.5] fill-emerald-500/10 hover:fill-emerald-500/20'
+                            ? 'stroke-rose-600 stroke-[1.5] fill-rose-500/15 hover:fill-rose-500/25'
+                            : 'stroke-emerald-600 stroke-[1.5] fill-emerald-500/15 hover:fill-emerald-500/25'
                         }`}
                       />
                       {isSelected && (
@@ -240,7 +240,7 @@ export default function ReportViewer({
                             width={Math.min(w, 320)}
                             height="24"
                             rx="4"
-                            className="fill-emerald-700/90 shadow"
+                            className="fill-emerald-700 shadow"
                           />
                           <text
                             x="8"
@@ -258,17 +258,17 @@ export default function ReportViewer({
             </div>
           ) : isPdf ? (
             /* View Mode 2: PDF Document Embed with Real File Stream */
-            <div className="rounded-lg overflow-hidden shadow-2xl border border-slate-800 bg-slate-900 min-h-[550px] flex flex-col">
-              <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
-                <span className="font-semibold text-slate-300 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-emerald-400" />
+            <div className="rounded-lg overflow-hidden shadow-xl border border-slate-300 bg-white min-h-[550px] flex flex-col">
+              <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-emerald-600" />
                   PDF Laboratory Document
                 </span>
                 <a
                   href={resolvedFileUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 text-[11px] font-medium"
+                  className="text-emerald-700 hover:text-emerald-800 flex items-center gap-1 text-[11px] font-semibold"
                 >
                   <span>Open PDF in New Tab</span>
                   <ExternalLink className="w-3 h-3" />
@@ -277,23 +277,23 @@ export default function ReportViewer({
               <iframe
                 src={resolvedFileUrl}
                 title={`Clinical Laboratory PDF Report for ${patientName}`}
-                className="w-full flex-1 min-h-[500px] border-none bg-slate-950"
+                className="w-full flex-1 min-h-[500px] border-none bg-slate-100"
               />
             </div>
           ) : (
             /* View Mode 3: Honest Extracted Findings View (NO fake hospital/doctor letterheads) */
-            <div className="bg-slate-900/90 text-slate-100 rounded-xl shadow-xl p-5 border border-slate-800 space-y-4">
-              <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
+            <div className="bg-white text-slate-900 rounded-2xl shadow-sm p-5 border border-slate-200 space-y-4">
+              <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-sm text-slate-200 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2 font-display">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     Structured Diagnostic Extract
                   </h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-slate-500 mt-0.5">
                     Extracted investigation findings parsed with SHA-256 cryptographic verification.
                   </p>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                   {results.length} Extracted Parameters
                 </span>
               </div>
@@ -310,29 +310,29 @@ export default function ReportViewer({
                       onClick={() => onSelectResult && onSelectResult(res.id)}
                       aria-pressed={isSelected}
                       aria-label={`${res.test_name}: ${res.value} ${res.unit || ''}`}
-                      className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      className={`w-full text-left p-3 rounded-xl border transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         isSelected
-                          ? 'bg-emerald-950/60 border-emerald-500 text-white shadow-sm ring-1 ring-emerald-500/50'
-                          : 'bg-slate-950/50 border-slate-800 hover:border-slate-700 text-slate-300'
+                          ? 'bg-emerald-50/70 border-emerald-500 text-slate-900 shadow-sm ring-1 ring-emerald-500/40'
+                          : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-white text-slate-800'
                       }`}
                     >
                       <div className="flex items-center justify-between text-xs">
-                        <div className="font-semibold text-slate-200">
+                        <div className="font-bold text-slate-900">
                           {res.canonical_name || res.test_name}
                         </div>
-                        <div className={`font-bold ${res.is_abnormal ? 'text-rose-400' : 'text-slate-100'}`}>
-                          {res.value} <span className="font-normal text-slate-400 text-[11px]">{res.unit}</span>
+                        <div className={`font-bold ${res.is_abnormal ? 'text-rose-600' : 'text-slate-900'}`}>
+                          {res.value} <span className="font-medium text-slate-500 text-[11px]">{res.unit}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
                         <span>
                           Reference: {res.ref_low !== null && res.ref_high !== null ? `${res.ref_low} – ${res.ref_high}` : res.ref_raw || 'Unspecified'}
                         </span>
                         <span>
                           {isGrounded ? (
-                            <span className="text-emerald-400 font-medium">✓ Grounded</span>
+                            <span className="text-emerald-700 font-semibold">✓ Grounded</span>
                           ) : (
-                            <span className="text-amber-400/80">Location unconfirmed</span>
+                            <span className="text-amber-700 font-medium">Location unconfirmed</span>
                           )}
                         </span>
                       </div>

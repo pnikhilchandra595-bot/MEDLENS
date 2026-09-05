@@ -63,10 +63,11 @@ class LoincNormalizer:
             return local_result
 
         # 2. Live NLM Clinical Tables API search (full LOINC database)
-        nlm_result = self.search_nlm_loinc(raw_test_name)
-        if nlm_result and nlm_result.get("is_recognized"):
-            self._cache[cleaned_query] = nlm_result
-            return nlm_result
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            nlm_result = self.search_nlm_loinc(raw_test_name)
+            if nlm_result and nlm_result.get("is_recognized"):
+                self._cache[cleaned_query] = nlm_result
+                return nlm_result
 
         # 3. Unmatched fallback: flag for human review, never drop
         fallback_result = {
